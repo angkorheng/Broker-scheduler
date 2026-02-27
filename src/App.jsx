@@ -3,7 +3,7 @@ import ImportedFromBadge from './components/ImportedFromBadge';
 import NotesModal from './components/NotesModal';
 import { WORKER_URL, DEFAULT_BROKERS, HOURS, SLOT_LENGTHS, DAYS } from './utils/constants';
 import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabel } from './utils/dateUtils';
-import { loadLocal, saveLocal } from './utils/storage';
+import { loadAll, upsertAppt, upsertAppts, deleteApptDB, upsertClient, upsertClients, insertNote, saveSetting } from './utils/supabase';
 import { parseCSV } from './utils/csvParser';
 
 export default function App() {
@@ -23,56 +23,38 @@ export default function App() {
   const [creds, setCreds]           = useState({ redtailKey: "", redtailUser: "", pipedriveToken: "" });
   const [syncStatus, setSyncStatus] = useState({ redtail: null, pipedrive: null });
   const [syncMsg, setSyncMsg]       = useState({ redtail: "", pipedrive: "" });
-  const [saveMsg, setSaveMsg]       = useState("");
+  const [loading, setLoading]       = useState(true);
   const [notesClient, setNotesClient] = useState(null);
   const csvRef = useRef();
-  const loadRef = useRef();
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    const d = loadLocal();
-    if (d) {
-      if (d.appointments)     setAppts(d.appointments);
-      if (d.clients)          setClients(d.clients);
-      if (d.brokers)          setBrokers(d.brokers);
-      if (d.overdueThreshold) setODT(d.overdueThreshold);
-      if (d.creds)            setCreds(d.creds);
-      if (d.notes)            setNotes(d.notes);
-    }
+    loadAll().then(d => {
+      if (d.appointments?.length)                 setAppts(d.appointments);
+      if (d.clients?.length)                      setClients(d.clients);
+      if (d.brokers)                              setBrokers(d.brokers);
+      if (d.overdueThreshold != null)             setODT(d.overdueThreshold);
+      if (d.creds)                                setCreds(d.creds);
+      if (d.notes && Object.keys(d.notes).length) setNotes(d.notes);
+      loadedRef.current = true;
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    saveLocal({ appointments, clients, brokers, overdueThreshold, creds, notes });
-  }, [appointments, clients, brokers, overdueThreshold, creds, notes]);
+    if (!loadedRef.current) return;
+    saveSetting('brokers', brokers);
+  }, [brokers]);
 
-  function saveToYDrive() {
-    const data = { appointments, clients, brokers, overdueThreshold, notes };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "scheduler-data.json"; a.click();
-    URL.revokeObjectURL(url);
-    setSaveMsg("✓ Data exported! Save this file to your Y drive as 'scheduler-data.json'.");
-    setTimeout(() => setSaveMsg(""), 5000);
-  }
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    saveSetting('overdueThreshold', overdueThreshold);
+  }, [overdueThreshold]);
 
-  function loadFromYDrive(e) {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (data.appointments)     setAppts(data.appointments);
-        if (data.clients)          setClients(data.clients);
-        if (data.brokers)          setBrokers(data.brokers);
-        if (data.overdueThreshold) setODT(data.overdueThreshold);
-        if (data.notes)            setNotes(data.notes);
-        setSaveMsg("✓ Data loaded successfully from Y drive!");
-        setTimeout(() => setSaveMsg(""), 4000);
-      } catch { setSaveMsg("❌ Could not read file."); }
-      if (loadRef.current) loadRef.current.value = "";
-    };
-    reader.readAsText(file);
-  }
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    saveSetting('creds', creds);
+  }, [creds]);
 
   const weekDays = DAYS.map((name, i) => ({ name, date: addDays(weekStart, i) }));
 
@@ -93,6 +75,16 @@ export default function App() {
 
   function addNote(clientName, entry) {
     setNotes(prev => ({ ...prev, [clientName]: [...(prev[clientName] || []), entry] }));
+    insertNote(clientName, entry);
+  }
+
+  function updateClientBrokers(clientId, newBrokers) {
+    setClients(prev => {
+      const updated = prev.map(cl => cl.id === clientId ? { ...cl, manualBrokers: newBrokers } : cl);
+      const client = updated.find(cl => cl.id === clientId);
+      if (client) upsertClient(client);
+      return updated;
+    });
   }
 
   async function syncPipedrive() {
@@ -154,6 +146,7 @@ export default function App() {
         setAppts(prev => {
           const manual = prev.filter(a => !a.fromPipedrive);
           const deduped = newAppts.filter(na => !manual.find(m => m.date === na.date && m.broker === na.broker && m.startHour === na.startHour));
+          upsertAppts(deduped);
           return [...manual, ...deduped];
         });
       }
@@ -197,7 +190,9 @@ export default function App() {
       });
       const existingNames = new Set(prev.map(c => c.name.toLowerCase()));
       const newOnes = incoming.filter(c => !existingNames.has(c.name.toLowerCase()));
-      return [...updated, ...newOnes];
+      const all = [...updated, ...newOnes];
+      upsertClients(all);
+      return all;
     });
   }
 
@@ -221,16 +216,22 @@ export default function App() {
     if (!form.clientName.trim()) return;
     if (modal.type === "new") {
       const id = Date.now().toString();
-      setAppts(prev => [...prev, { ...form, id }]);
-      if (!clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase()))
-        setClients(prev => [...prev, { id: id + "c", name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker }]);
+      const newAppt = { ...form, id };
+      setAppts(prev => [...prev, newAppt]);
+      upsertAppt(newAppt);
+      if (!clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase())) {
+        const newClient = { id: id + "c", name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker };
+        setClients(prev => [...prev, newClient]);
+        upsertClient(newClient);
+      }
     } else {
       setAppts(prev => prev.map(a => a.id === form.id ? { ...form } : a));
+      upsertAppt(form);
     }
     setModal(null);
   }
 
-  function deleteAppt(id) { setAppts(prev => prev.filter(a => a.id !== id)); setModal(null); }
+  function deleteAppt(id) { setAppts(prev => prev.filter(a => a.id !== id)); deleteApptDB(id); setModal(null); }
 
   function apptAt(broker, date, hour) {
     return appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === hour);
@@ -318,16 +319,10 @@ export default function App() {
           ))}
         </nav>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <button style={S.saveBtn2} onClick={saveToYDrive}>💾 Save to Y Drive</button>
-          <label style={{ ...S.loadBtn, display: "inline-block" }}>
-            📂 Load from Y Drive
-            <input ref={loadRef} type="file" accept=".json" onChange={loadFromYDrive} style={{ display: "none" }} />
-          </label>
+          {loading && <span style={{ color: "#5a7a9a", fontSize: 12 }}>⏳ Connecting…</span>}
           <button style={S.iconBtn} onClick={() => setSOp(true)}>⚙️ Settings</button>
         </div>
       </header>
-
-      {saveMsg && <div style={S.saveMsgBar}>{saveMsg}</div>}
 
       {tab === "schedule" && (
         <div style={S.page}>
@@ -440,13 +435,13 @@ export default function App() {
                           ? allBrokers.map((b, i) => (
                             <span key={i} style={{ background: b.includes("Unassigned") ? "#2a1a0a" : "#0f2a1a", color: b.includes("Unassigned") ? "#ff9a3c" : "#4caf73", borderRadius: 8, padding: "1px 8px", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                               {b}
-                              {manualBrokers.includes(b) && <span style={{ cursor: "pointer", fontSize: 10, opacity: 0.7 }} onClick={() => setClients(prev => prev.map(cl => cl.id === c.id ? { ...cl, manualBrokers: (cl.manualBrokers||[]).filter(x => x !== b) } : cl))}>✕</span>}
+                              {manualBrokers.includes(b) && <span style={{ cursor: "pointer", fontSize: 10, opacity: 0.7 }} onClick={() => updateClientBrokers(c.id, (c.manualBrokers||[]).filter(x => x !== b))}>✕</span>}
                             </span>
                           ))
                           : <span style={{ color: "#5a7a9a" }}>—</span>
                         }
                         <select style={{ background: "#0a1e30", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "2px 6px", fontSize: 11, cursor: "pointer" }} value=""
-                          onChange={e => { const val = e.target.value; if (!val) return; setClients(prev => prev.map(cl => cl.id === c.id ? { ...cl, manualBrokers: [...new Set([...(cl.manualBrokers||[]), val])] } : cl)); }}>
+                          onChange={e => { const val = e.target.value; if (!val) return; updateClientBrokers(c.id, [...new Set([...(c.manualBrokers||[]), val])]); }}>
                           <option value="">+ Add</option>
                           {brokers.filter(b => !manualBrokers.includes(b)).map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
@@ -627,7 +622,9 @@ export default function App() {
               <button style={S.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={S.saveBtn} onClick={() => {
                 if (!form.name.trim()) return;
-                setClients(prev => [...prev, { ...form, id: Date.now().toString(), importedFrom: "manual", assignedBroker: "" }]);
+                const newClient = { ...form, id: Date.now().toString(), importedFrom: "manual", assignedBroker: "" };
+                setClients(prev => [...prev, newClient]);
+                upsertClient(newClient);
                 setModal(null);
               }}>Add Client</button>
             </div>
