@@ -93,3 +93,11 @@ export async function insertNote(clientName, entry) {
 export async function saveSetting(key, value) {
   await supabase.from('settings').upsert({ key, value });
 }
+
+export async function deleteClientDB(clientId, clientName) {
+  await Promise.all([
+    supabase.from('clients').delete().eq('id', clientId),
+    supabase.from('appointments').delete().eq('client_name', clientName),
+    supabase.from('notes').delete().eq('client_name', clientName),
+  ]);
+}

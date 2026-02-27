@@ -3,7 +3,7 @@ import ImportedFromBadge from './components/ImportedFromBadge';
 import NotesModal from './components/NotesModal';
 import { WORKER_URL, DEFAULT_BROKERS, HOURS, SLOT_LENGTHS, DAYS } from './utils/constants';
 import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabel } from './utils/dateUtils';
-import { loadAll, upsertAppt, upsertAppts, deleteApptDB, upsertClient, upsertClients, insertNote, saveSetting } from './utils/supabase';
+import { loadAll, upsertAppt, upsertAppts, deleteApptDB, upsertClient, upsertClients, insertNote, saveSetting, deleteClientDB } from './utils/supabase';
 import { parseCSV } from './utils/csvParser';
 
 export default function App() {
@@ -232,6 +232,14 @@ export default function App() {
   }
 
   function deleteAppt(id) { setAppts(prev => prev.filter(a => a.id !== id)); deleteApptDB(id); setModal(null); }
+
+  function deleteClient(client) {
+    if (!window.confirm(`Delete "${client.name}" and all their appointments and notes? This cannot be undone.`)) return;
+    setClients(prev => prev.filter(c => c.id !== client.id));
+    setAppts(prev => prev.filter(a => a.clientName !== client.name));
+    setNotes(prev => { const n = { ...prev }; delete n[client.name]; return n; });
+    deleteClientDB(client.id, client.name);
+  }
 
   function apptAt(broker, date, hour) {
     return appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === hour);
@@ -463,6 +471,10 @@ export default function App() {
                         style={{ background: "#1a3a5c", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
                         📅 Book
                       </button>
+                      <button onClick={() => deleteClient(c)}
+                        style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
+                        🗑 Delete
+                      </button>
                     </td>
                   </tr>
                 );
@@ -504,6 +516,10 @@ export default function App() {
                           <button onClick={() => setNotesClient(c)}
                             style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `1px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                             📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
+                          </button>
+                          <button onClick={() => deleteClient(c)}
+                            style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
+                            🗑 Delete
                           </button>
                         </td>
                       </tr>
