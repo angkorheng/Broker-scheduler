@@ -19,6 +19,7 @@ export default function App() {
   const [nameSort, setNameSort]     = useState("asc");
   const [overdueThreshold, setODT]  = useState(90);
   const [settingsTab, setSTB]       = useState("brokers");
+  const [staff, setStaff]           = useState([]);
   const [settingsOpen, setSOp]      = useState(false);
   const [creds, setCreds]           = useState({ redtailKey: "", redtailUser: "", pipedriveToken: "" });
   const [syncStatus, setSyncStatus] = useState({ redtail: null, pipedrive: null });
@@ -33,6 +34,7 @@ export default function App() {
       if (d.appointments?.length)                 setAppts(d.appointments);
       if (d.clients?.length)                      setClients(d.clients);
       if (d.brokers)                              setBrokers(d.brokers);
+      if (d.staff)                                setStaff(d.staff);
       if (d.overdueThreshold != null)             setODT(d.overdueThreshold);
       if (d.creds)                                setCreds(d.creds);
       if (d.notes && Object.keys(d.notes).length) setNotes(d.notes);
@@ -45,6 +47,11 @@ export default function App() {
     if (!loadedRef.current) return;
     saveSetting('brokers', brokers);
   }, [brokers]);
+
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    saveSetting('staff', staff);
+  }, [staff]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
@@ -276,6 +283,7 @@ export default function App() {
     dayHeader:    { padding: "8px 4px", textAlign: "center", fontSize: 12, color: "#d0e4f7", borderBottom: "1px solid #1a3a5c", borderLeft: "1px solid #1a3a5c" },
     brokerRow:    { display: "flex", width: "100%" },
     brokerHeader: { flex: 1, padding: "3px 2px", fontSize: 9, color: "#5a8aaa", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c1f30" },
+    staffHeader:  { flex: 1, padding: "3px 2px", fontSize: 9, color: "#5aaa8a", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c2018" },
     trFull:       { borderTop: "1px solid #1a3050" },
     trHalf:       { borderTop: "1px dotted #0f2030" },
     timeCell:     { padding: "0 6px", textAlign: "right", fontSize: 9, color: "#5a7a9a", verticalAlign: "top", whiteSpace: "nowrap", width: 58, height: 28 },
@@ -361,7 +369,10 @@ export default function App() {
                   <td style={S.timeCell} />
                   {weekDays.map(({ name }) => (
                     <td key={name} style={{ padding: 0 }}>
-                      <div style={S.brokerRow}>{brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}</div>
+                      <div style={S.brokerRow}>
+                        {brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}
+                        {staff.map(s => <div key={s} style={S.staffHeader}>{s}</div>)}
+                      </div>
                     </td>
                   ))}
                 </tr>
@@ -373,24 +384,27 @@ export default function App() {
                     {weekDays.map(({ name, date }) => (
                       <td key={name} style={{ padding: 0, verticalAlign: "top" }}>
                         <div style={S.brokerRow}>
-                          {brokers.map(broker => {
-                            const appt = apptAt(broker, date, hour);
-                            const blocked = !appt && isBlockedByPrev(broker, date, hour);
-                            if (blocked) return <div key={broker} style={S.blockedCell} />;
+                          {[...brokers, ...staff].map((person, pi) => {
+                            const isStaff = pi >= brokers.length;
+                            const appt = apptAt(person, date, hour);
+                            const blocked = !appt && isBlockedByPrev(person, date, hour);
+                            if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#0a1a12" : S.blockedCell.background }} />;
                             if (appt) {
                               const rows = appt.duration / 0.5;
                               const hasNotes = (notes[appt.clientName] || []).length > 0;
-                              const bg = appt.duration === 2 ? "#1a4a6b" : appt.duration === 1.5 ? "#163d5a" : "#122f48";
+                              const bg = isStaff
+                                ? (appt.duration === 2 ? "#1a4a30" : appt.duration === 1.5 ? "#163d28" : "#122f20")
+                                : (appt.duration === 2 ? "#1a4a6b" : appt.duration === 1.5 ? "#163d5a" : "#122f48");
                               return (
-                                <div key={broker} style={{ ...S.apptCell, height: `${rows * 28}px`, background: bg, cursor: "pointer" }} onClick={() => openEditAppt(appt)}>
-                                  <div style={S.apptName}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
-                                  {appt.duration !== 1 && <div style={S.apptDur}>{appt.duration}h</div>}
+                                <div key={person} style={{ ...S.apptCell, height: `${rows * 28}px`, background: bg, cursor: "pointer", borderLeft: `2px solid ${isStaff ? "#4caf73" : "#4db8ff"}` }} onClick={() => openEditAppt(appt)}>
+                                  <div style={{ ...S.apptName, color: isStaff ? "#ccf0e0" : S.apptName.color }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                  {appt.duration !== 1 && <div style={{ ...S.apptDur, color: isStaff ? "#4caf73" : S.apptDur.color }}>{appt.duration}h</div>}
                                   {appt.notes && <div style={S.apptNotes}>{appt.notes}</div>}
                                 </div>
                               );
                             }
                             const isPast = new Date(dateKey(date)) < new Date(dateKey(TODAY));
-                            return <div key={broker} style={{ ...S.emptyCell, cursor: isPast ? "default" : "pointer" }} onClick={() => !isPast && openNewAppt(broker, date, hour)} />;
+                            return <div key={person} style={{ ...S.emptyCell, cursor: isPast ? "default" : "pointer" }} onClick={() => !isPast && openNewAppt(person, date, hour)} />;
                           })}
                         </div>
                       </td>
@@ -451,7 +465,8 @@ export default function App() {
                         <select style={{ background: "#0a1e30", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "2px 6px", fontSize: 11, cursor: "pointer" }} value=""
                           onChange={e => { const val = e.target.value; if (!val) return; updateClientBrokers(c.id, [...new Set([...(c.manualBrokers||[]), val])]); }}>
                           <option value="">+ Add</option>
-                          {brokers.filter(b => !manualBrokers.includes(b)).map(b => <option key={b} value={b}>{b}</option>)}
+                          {brokers.filter(b => !manualBrokers.includes(b)).length > 0 && <optgroup label="Brokers">{brokers.filter(b => !manualBrokers.includes(b)).map(b => <option key={b} value={b}>{b}</option>)}</optgroup>}
+                          {staff.filter(s => !manualBrokers.includes(s)).length > 0 && <optgroup label="Staff">{staff.filter(s => !manualBrokers.includes(s)).map(s => <option key={s} value={s}>{s}</option>)}</optgroup>}
                         </select>
                       </div>
                     </td>
@@ -546,7 +561,9 @@ export default function App() {
             {settingsTab === "brokers" && (
               <>
                 <label style={S.label}>Broker Names (one per line)</label>
-                <textarea style={{ ...S.input, height: 130, resize: "vertical", marginTop: 4 }} value={brokers.join("\n")} onChange={e => setBrokers(e.target.value.split("\n").filter(Boolean))} />
+                <textarea style={{ ...S.input, height: 100, resize: "vertical", marginTop: 4 }} value={brokers.join("\n")} onChange={e => setBrokers(e.target.value.split("\n").filter(Boolean))} />
+                <label style={{ ...S.label, marginTop: 16 }}>Staff Names (one per line)</label>
+                <textarea style={{ ...S.input, height: 80, resize: "vertical", marginTop: 4 }} value={staff.join("\n")} onChange={e => setStaff(e.target.value.split("\n").filter(Boolean))} placeholder="e.g. Front Desk, Admin…" />
                 <label style={S.label}>Overdue threshold (days)</label>
                 <input type="number" style={{ ...S.input, width: 100, marginTop: 4 }} value={overdueThreshold} onChange={e => setODT(Number(e.target.value))} />
               </>
@@ -588,9 +605,10 @@ export default function App() {
         <div style={S.overlay} onClick={() => setModal(null)}>
           <div style={S.modalBox} onClick={e => e.stopPropagation()}>
             <h3 style={S.modalTitle}>{modal.type === "new" ? "📅 New Appointment" : "✏️ Edit Appointment"}</h3>
-            <label style={S.label}>Broker</label>
+            <label style={S.label}>Broker / Staff</label>
             <select style={S.input} value={form.broker} onChange={e => setForm(f => ({ ...f, broker: e.target.value }))}>
-              {brokers.map(b => <option key={b}>{b}</option>)}
+              {brokers.length > 0 && <optgroup label="Brokers">{brokers.map(b => <option key={b} value={b}>{b}</option>)}</optgroup>}
+              {staff.length > 0 && <optgroup label="Staff">{staff.map(s => <option key={s} value={s}>{s}</option>)}</optgroup>}
             </select>
             <label style={S.label}>Date</label>
             <input type="date" style={S.input} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
