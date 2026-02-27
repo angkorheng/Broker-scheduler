@@ -22,7 +22,7 @@ function LoginGate({ onAuth }) {
       <div style={{ background: "#0d1e2e", border: "2px solid #1a3a5c", borderRadius: 16, padding: "48px 52px", width: 420, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{ fontSize: 52, marginBottom: 12 }}>📋</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: "#d0e4f7" }}>BrokerScheduler</div>
+          <div style={{ fontWeight: 700, fontSize: 24, color: "#d0e4f7" }}>Cinergy Financial Scheduler</div>
           <div style={{ fontSize: 15, color: "#5a7a9a", marginTop: 4 }}>Financial Advisory — Please sign in</div>
         </div>
         <label style={{ display: "block", color: "#8b9db5", fontSize: 16, marginBottom: 8, fontWeight: 600 }}>Password</label>
@@ -421,7 +421,7 @@ export default function App() {
       <header style={S.header}>
         <div style={S.headerLeft}>
           <span style={{ fontSize: 22 }}>📋</span>
-          <div><div style={S.logoText}>BrokerScheduler</div><div style={S.logoSub}>Financial Advisory</div></div>
+          <div><div style={S.logoText}>Cinergy Financial Scheduler</div><div style={S.logoSub}>Financial Advisory</div></div>
         </div>
         <nav style={S.nav}>
           {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`]].map(([id, label]) => (
