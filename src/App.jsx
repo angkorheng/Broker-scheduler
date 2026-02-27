@@ -20,7 +20,6 @@ export default function App() {
   const [overdueThreshold, setODT]      = useState(90);
   const [settingsTab, setSTB]           = useState("brokers");
   const [selectedClients, setSelClients] = useState(new Set());
-  const [staff, setStaff]           = useState([]);
   const [settingsOpen, setSOp]      = useState(false);
   const [creds, setCreds]           = useState({ redtailKey: "", redtailUser: "", pipedriveToken: "" });
   const [syncStatus, setSyncStatus] = useState({ redtail: null, pipedrive: null });
@@ -35,7 +34,6 @@ export default function App() {
       if (d.appointments?.length)                 setAppts(d.appointments);
       if (d.clients?.length)                      setClients(d.clients);
       if (d.brokers)                              setBrokers(d.brokers);
-      if (d.staff)                                setStaff(d.staff);
       if (d.overdueThreshold != null)             setODT(d.overdueThreshold);
       if (d.creds)                                setCreds(d.creds);
       if (d.notes && Object.keys(d.notes).length) setNotes(d.notes);
@@ -48,11 +46,6 @@ export default function App() {
     if (!loadedRef.current) return;
     saveSetting('brokers', brokers);
   }, [brokers]);
-
-  useEffect(() => {
-    if (!loadedRef.current) return;
-    saveSetting('staff', staff);
-  }, [staff]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
@@ -409,7 +402,7 @@ export default function App() {
                     <td key={name} style={{ padding: 0 }}>
                       <div style={S.brokerRow}>
                         {brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}
-                        {staff.map(s => <div key={s} style={S.staffHeader}>{s}</div>)}
+                        <div style={S.staffHeader}>Staff</div>
                       </div>
                     </td>
                   ))}
@@ -422,7 +415,7 @@ export default function App() {
                     {weekDays.map(({ name, date }) => (
                       <td key={name} style={{ padding: 0, verticalAlign: "top" }}>
                         <div style={S.brokerRow}>
-                          {[...brokers, ...staff].map((person, pi) => {
+                          {[...brokers, "Staff"].map((person, pi) => {
                             const isStaff = pi >= brokers.length;
                             const appt = apptAt(person, date, hour);
                             const blocked = !appt && isBlockedByPrev(person, date, hour);
@@ -472,8 +465,8 @@ export default function App() {
                 defaultValue=""
                 onChange={e => { bulkAssign(e.target.value); e.target.value = ""; }}>
                 <option value="" disabled>Assign broker / staff…</option>
-                {brokers.length > 0 && <optgroup label="Brokers">{brokers.map(b => <option key={b} value={b}>{b}</option>)}</optgroup>}
-                {staff.length > 0 && <optgroup label="Staff">{staff.map(s => <option key={s} value={s}>{s}</option>)}</optgroup>}
+                {brokers.map(b => <option key={b} value={b}>{b}</option>)}
+                <option value="Staff">Staff</option>
               </select>
               <button onClick={bulkClearAssignments}
                 style={{ background: "#1a2a1a", border: "1px solid #4a7a4a", color: "#8bd08b", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
@@ -537,8 +530,8 @@ export default function App() {
                         <select style={{ background: "#0a1e30", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "2px 6px", fontSize: 11, cursor: "pointer" }} value=""
                           onChange={e => { const val = e.target.value; if (!val) return; updateClientBrokers(c.id, [...new Set([...(c.manualBrokers||[]), val])]); }}>
                           <option value="">+ Add</option>
-                          {brokers.filter(b => !manualBrokers.includes(b)).length > 0 && <optgroup label="Brokers">{brokers.filter(b => !manualBrokers.includes(b)).map(b => <option key={b} value={b}>{b}</option>)}</optgroup>}
-                          {staff.filter(s => !manualBrokers.includes(s)).length > 0 && <optgroup label="Staff">{staff.filter(s => !manualBrokers.includes(s)).map(s => <option key={s} value={s}>{s}</option>)}</optgroup>}
+                          {brokers.filter(b => !manualBrokers.includes(b)).map(b => <option key={b} value={b}>{b}</option>)}
+                          {!manualBrokers.includes("Staff") && <option value="Staff">Staff</option>}
                         </select>
                       </div>
                     </td>
@@ -633,9 +626,7 @@ export default function App() {
             {settingsTab === "brokers" && (
               <>
                 <label style={S.label}>Broker Names (one per line)</label>
-                <textarea style={{ ...S.input, height: 100, resize: "vertical", marginTop: 4 }} value={brokers.join("\n")} onChange={e => setBrokers(e.target.value.split("\n").filter(Boolean))} />
-                <label style={{ ...S.label, marginTop: 16 }}>Staff Names (one per line)</label>
-                <textarea style={{ ...S.input, height: 80, resize: "vertical", marginTop: 4 }} value={staff.join("\n")} onChange={e => setStaff(e.target.value.split("\n").filter(Boolean))} placeholder="e.g. Front Desk, Admin…" />
+                <textarea style={{ ...S.input, height: 130, resize: "vertical", marginTop: 4 }} value={brokers.join("\n")} onChange={e => setBrokers(e.target.value.split("\n").filter(Boolean))} />
                 <label style={S.label}>Overdue threshold (days)</label>
                 <input type="number" style={{ ...S.input, width: 100, marginTop: 4 }} value={overdueThreshold} onChange={e => setODT(Number(e.target.value))} />
               </>
@@ -679,8 +670,8 @@ export default function App() {
             <h3 style={S.modalTitle}>{modal.type === "new" ? "📅 New Appointment" : "✏️ Edit Appointment"}</h3>
             <label style={S.label}>Broker / Staff</label>
             <select style={S.input} value={form.broker} onChange={e => setForm(f => ({ ...f, broker: e.target.value }))}>
-              {brokers.length > 0 && <optgroup label="Brokers">{brokers.map(b => <option key={b} value={b}>{b}</option>)}</optgroup>}
-              {staff.length > 0 && <optgroup label="Staff">{staff.map(s => <option key={s} value={s}>{s}</option>)}</optgroup>}
+              {brokers.map(b => <option key={b} value={b}>{b}</option>)}
+              <option value="Staff">Staff</option>
             </select>
             <label style={S.label}>Date</label>
             <input type="date" style={S.input} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
