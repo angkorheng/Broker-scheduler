@@ -46,6 +46,57 @@ function LoginGate({ onAuth }) {
   );
 }
 
+const CAL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const CAL_DAYS   = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+function CalendarPicker({ value, onChange }) {
+  const todayStr = TODAY.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const [viewYear,  setViewYear]  = useState(() => value ? parseInt(value.slice(0,4))    : parseInt(todayStr.slice(0,4)));
+  const [viewMonth, setViewMonth] = useState(() => value ? parseInt(value.slice(5,7)) - 1 : parseInt(todayStr.slice(5,7)) - 1);
+
+  useEffect(() => {
+    if (value) { setViewYear(parseInt(value.slice(0,4))); setViewMonth(parseInt(value.slice(5,7)) - 1); }
+  }, []); // sync to initial value only on mount
+
+  function prev() { viewMonth === 0 ? (setViewMonth(11), setViewYear(y => y-1)) : setViewMonth(m => m-1); }
+  function next() { viewMonth === 11 ? (setViewMonth(0),  setViewYear(y => y+1)) : setViewMonth(m => m+1); }
+
+  const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const cells = [...Array(firstDay).fill(null), ...Array.from({length: daysInMonth}, (_, i) => i+1)];
+
+  return (
+    <div style={{ background: "#07131f", border: "2px solid #1a3a5c", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <button type="button" onClick={prev} style={{ background: "none", border: "none", color: "#4db8ff", cursor: "pointer", fontSize: 22, padding: "0 8px", lineHeight: 1 }}>‹</button>
+        <span style={{ fontWeight: 700, color: "#d0e4f7", fontSize: 15 }}>{CAL_MONTHS[viewMonth]} {viewYear}</span>
+        <button type="button" onClick={next} style={{ background: "none", border: "none", color: "#4db8ff", cursor: "pointer", fontSize: 22, padding: "0 8px", lineHeight: 1 }}>›</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+        {CAL_DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#5a7a9a", fontWeight: 600, padding: "2px 0" }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`e${i}`} />;
+          const m   = String(viewMonth + 1).padStart(2, "0");
+          const day = String(d).padStart(2, "0");
+          const ds  = `${viewYear}-${m}-${day}`;
+          const sel = ds === value, tod = ds === todayStr;
+          return (
+            <div key={ds} onClick={() => onChange(ds)} style={{
+              textAlign: "center", padding: "7px 0", borderRadius: 6, cursor: "pointer", fontSize: 13,
+              background: sel ? "#1a4a6b" : tod ? "#0f2a40" : "transparent",
+              color:      sel ? "#4db8ff" : tod ? "#80c8ff" : "#d0e4f7",
+              border:     `2px solid ${sel ? "#4db8ff" : tod ? "#2a5a8c" : "transparent"}`,
+              fontWeight: sel || tod ? 700 : 400,
+            }}>{d}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [authed, setAuthed] = useState(false);
   const [tab, setTab]               = useState("schedule");
@@ -759,7 +810,7 @@ export default function App() {
               <option value="Staff">Staff</option>
             </select>
             <label style={S.label}>Date</label>
-            <input type="date" style={S.input} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            <CalendarPicker value={form.date} onChange={date => setForm(f => ({ ...f, date }))} />
             <label style={S.label}>Start Time</label>
             <select style={S.input} value={form.startHour} onChange={e => {
               const s = parseFloat(e.target.value);
