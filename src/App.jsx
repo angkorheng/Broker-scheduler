@@ -6,7 +6,48 @@ import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabe
 import { loadAll, upsertAppt, upsertAppts, deleteApptDB, upsertClient, upsertClients, insertNote, saveSetting, deleteClientDB } from './utils/supabase';
 import { parseCSV } from './utils/csvParser';
 
+const PASS = "Cinergy0361!@";
+
+function LoginGate({ onAuth }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState(false);
+
+  function attempt() {
+    if (pw === PASS) { onAuth(); }
+    else { setErr(true); setPw(""); }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#07131f", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Segoe UI',sans-serif" }}>
+      <div style={{ background: "#0d1e2e", border: "2px solid #1a3a5c", borderRadius: 16, padding: "48px 52px", width: 420, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ fontSize: 52, marginBottom: 12 }}>📋</div>
+          <div style={{ fontWeight: 700, fontSize: 24, color: "#d0e4f7" }}>BrokerScheduler</div>
+          <div style={{ fontSize: 15, color: "#5a7a9a", marginTop: 4 }}>Financial Advisory — Please sign in</div>
+        </div>
+        <label style={{ display: "block", color: "#8b9db5", fontSize: 16, marginBottom: 8, fontWeight: 600 }}>Password</label>
+        <input
+          type="password"
+          value={pw}
+          onChange={e => { setPw(e.target.value); setErr(false); }}
+          onKeyDown={e => e.key === "Enter" && attempt()}
+          autoFocus
+          style={{ width: "100%", background: "#07131f", border: `2px solid ${err ? "#7a2020" : "#1a3a5c"}`, borderRadius: 8, color: "#d0e4f7", padding: "13px 16px", fontSize: 17, boxSizing: "border-box", outline: "none" }}
+          placeholder="Enter your password…"
+        />
+        {err && <div style={{ color: "#ff6b6b", fontSize: 15, marginTop: 10, fontWeight: 600 }}>❌ Incorrect password. Please try again.</div>}
+        <button
+          onClick={attempt}
+          style={{ marginTop: 22, width: "100%", background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "14px", cursor: "pointer", fontWeight: 700, fontSize: 17 }}>
+          🔓 Unlock
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [authed, setAuthed] = useState(false);
   const [tab, setTab]               = useState("schedule");
   const [brokers, setBrokers]       = useState(DEFAULT_BROKERS);
   const [appointments, setAppts]    = useState([]);
@@ -26,6 +67,7 @@ export default function App() {
   const [syncMsg, setSyncMsg]       = useState({ redtail: "", pipedrive: "" });
   const [loading, setLoading]       = useState(true);
   const [notesClient, setNotesClient] = useState(null);
+  const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
   const loadedRef = useRef(false);
 
@@ -37,6 +79,7 @@ export default function App() {
       if (d.overdueThreshold != null)             setODT(d.overdueThreshold);
       if (d.creds)                                setCreds(d.creds);
       if (d.notes && Object.keys(d.notes).length) setNotes(d.notes);
+      if (d.clientStatuses) setClientStatuses(d.clientStatuses);
       loadedRef.current = true;
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -61,9 +104,10 @@ export default function App() {
 
   const clientStats = useMemo(() => {
     const map = {};
+    const todayStr = TODAY.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
     [...appointments].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(appt => {
       if (!map[appt.clientName]) map[appt.clientName] = { last: null, next: null };
-      if (new Date(appt.date) <= TODAY) map[appt.clientName].last = appt.date;
+      if (appt.date < todayStr) map[appt.clientName].last = appt.date;
       else if (!map[appt.clientName].next) map[appt.clientName].next = appt.date;
     });
     return map;
@@ -77,6 +121,16 @@ export default function App() {
   function addNote(clientName, entry) {
     setNotes(prev => ({ ...prev, [clientName]: [...(prev[clientName] || []), entry] }));
     insertNote(clientName, entry);
+  }
+
+  function setClientStatus(clientId, status) {
+    setClientStatuses(prev => {
+      const updated = { ...prev };
+      if (!status) delete updated[clientId];
+      else updated[clientId] = status;
+      saveSetting('clientStatuses', updated);
+      return updated;
+    });
   }
 
   function updateClientBrokers(clientId, newBrokers) {
@@ -297,65 +351,70 @@ export default function App() {
   }
 
   const S = {
-    root:         { minHeight: "100vh", background: "#07131f", color: "#d0e4f7", fontFamily: "'Segoe UI',sans-serif", fontSize: 13 },
-    header:       { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", background: "#0a1e30", borderBottom: "1px solid #1a3a5c", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 8 },
-    headerLeft:   { display: "flex", alignItems: "center", gap: 10 },
-    logoText:     { fontWeight: 700, fontSize: 15, color: "#d0e4f7" },
-    logoSub:      { fontSize: 10, color: "#5a7a9a" },
-    nav:          { display: "flex", gap: 5, flexWrap: "wrap" },
-    navBtn:       { background: "none", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12 },
-    navActive:    { background: "#1a3a5c", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-    iconBtn:      { background: "none", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "6px 10px", cursor: "pointer", fontSize: 12 },
-    saveBtn2:     { background: "#1a3a1a", border: "1px solid #4caf73", color: "#4caf73", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-    loadBtn:      { background: "#1a2a1a", border: "1px solid #4caf73", color: "#4caf73", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12 },
-    saveMsgBar:   { background: "#0a2a1a", borderBottom: "1px solid #1a5a3a", padding: "8px 20px", color: "#4caf73", fontSize: 12, textAlign: "center" },
-    page:         { padding: "16px 20px", maxWidth: "100%", overflowX: "auto" },
-    weekNav:      { display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" },
-    weekBtn:      { background: "#0f2030", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 },
-    weekLabel:    { fontWeight: 700, fontSize: 14, color: "#d0e4f7" },
+    root:         { minHeight: "100vh", background: "#07131f", color: "#d0e4f7", fontFamily: "'Segoe UI',sans-serif", fontSize: 15 },
+    header:       { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px", background: "#0a1e30", borderBottom: "2px solid #1a3a5c", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 10 },
+    headerLeft:   { display: "flex", alignItems: "center", gap: 14 },
+    logoText:     { fontWeight: 700, fontSize: 20, color: "#d0e4f7" },
+    logoSub:      { fontSize: 13, color: "#5a7a9a" },
+    nav:          { display: "flex", gap: 8, flexWrap: "wrap" },
+    navBtn:       { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 500 },
+    navActive:    { background: "#1a3a5c", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 700 },
+    iconBtn:      { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "11px 18px", cursor: "pointer", fontSize: 14 },
+    lockBtn:      { background: "none", border: "2px solid #3a2a0a", color: "#d0a040", borderRadius: 8, padding: "11px 18px", cursor: "pointer", fontSize: 14 },
+    saveBtn2:     { background: "#1a3a1a", border: "2px solid #4caf73", color: "#4caf73", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 14, fontWeight: 600 },
+    loadBtn:      { background: "#1a2a1a", border: "2px solid #4caf73", color: "#4caf73", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 14 },
+    saveMsgBar:   { background: "#0a2a1a", borderBottom: "1px solid #1a5a3a", padding: "10px 28px", color: "#4caf73", fontSize: 14, textAlign: "center" },
+    page:         { padding: "22px 28px", maxWidth: "100%", overflowX: "auto" },
+    weekNav:      { display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" },
+    weekBtn:      { background: "#0f2030", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "10px 20px", cursor: "pointer", fontSize: 15 },
+    weekLabel:    { fontWeight: 700, fontSize: 18, color: "#d0e4f7" },
     grid:         { borderCollapse: "collapse", minWidth: 900, width: "100%", tableLayout: "fixed" },
-    timeHeader:   { width: 58, background: "#0a1e30", padding: "6px 8px", color: "#5a7a9a", fontWeight: 400, fontSize: 11, textAlign: "right", borderBottom: "1px solid #1a3a5c" },
-    dayHeader:    { padding: "8px 4px", textAlign: "center", fontSize: 12, color: "#d0e4f7", borderBottom: "1px solid #1a3a5c", borderLeft: "1px solid #1a3a5c" },
+    timeHeader:   { width: 68, background: "#0a1e30", padding: "8px 10px", color: "#5a7a9a", fontWeight: 400, fontSize: 12, textAlign: "right", borderBottom: "1px solid #1a3a5c" },
+    dayHeader:    { padding: "10px 4px", textAlign: "center", fontSize: 14, color: "#d0e4f7", borderBottom: "1px solid #1a3a5c", borderLeft: "1px solid #1a3a5c" },
     brokerRow:    { display: "flex", width: "100%" },
-    brokerHeader: { flex: 1, padding: "3px 2px", fontSize: 9, color: "#5a8aaa", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c1f30" },
-    staffHeader:  { flex: 1, padding: "3px 2px", fontSize: 9, color: "#5aaa8a", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c2018" },
+    brokerHeader: { flex: 1, padding: "4px 2px", fontSize: 11, color: "#5a8aaa", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c1f30" },
+    staffHeader:  { flex: 1, padding: "4px 2px", fontSize: 11, color: "#5aaa8a", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c2018" },
     trFull:       { borderTop: "1px solid #1a3050" },
     trHalf:       { borderTop: "1px dotted #0f2030" },
-    timeCell:     { padding: "0 6px", textAlign: "right", fontSize: 9, color: "#5a7a9a", verticalAlign: "top", whiteSpace: "nowrap", width: 58, height: 28 },
-    emptyCell:    { flex: 1, height: 28, borderRight: "1px solid #0d2035" },
-    blockedCell:  { flex: 1, height: 28, background: "#0f1e2a", borderRight: "1px solid #0d2035" },
-    apptCell:     { flex: 1, padding: "2px 3px", overflow: "hidden", borderRight: "1px solid #0d2035", borderLeft: "2px solid #4db8ff" },
-    apptName:     { fontWeight: 600, fontSize: 9, color: "#cce8ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-    apptDur:      { fontSize: 8, color: "#4db8ff" },
-    apptNotes:    { fontSize: 8, color: "#8ba8c0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-    toolBar:      { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 },
-    sectionTitle: { margin: 0, fontSize: 16, color: "#d0e4f7" },
-    searchInput:  { background: "#0a1e30", border: "1px solid #1a3a5c", borderRadius: 6, color: "#d0e4f7", padding: "6px 12px", fontSize: 13 },
-    addBtn:       { background: "#1a4a6b", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontSize: 12 },
+    timeCell:     { padding: "0 8px", textAlign: "right", fontSize: 11, color: "#5a7a9a", verticalAlign: "top", whiteSpace: "nowrap", width: 68, height: 34 },
+    emptyCell:    { flex: 1, height: 34, borderRight: "1px solid #0d2035" },
+    blockedCell:  { flex: 1, height: 34, background: "#0f1e2a", borderRight: "1px solid #0d2035" },
+    apptCell:     { flex: 1, padding: "3px 4px", overflow: "hidden", borderRight: "1px solid #0d2035", borderLeft: "3px solid #4db8ff" },
+    apptName:     { fontWeight: 700, fontSize: 11, color: "#cce8ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    apptDur:      { fontSize: 10, color: "#4db8ff" },
+    apptNotes:    { fontSize: 10, color: "#8ba8c0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    toolBar:      { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 },
+    sectionTitle: { margin: 0, fontSize: 22, color: "#d0e4f7", fontWeight: 700 },
+    searchInput:  { background: "#0a1e30", border: "2px solid #1a3a5c", borderRadius: 8, color: "#d0e4f7", padding: "10px 16px", fontSize: 15 },
+    addBtn:       { background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 700 },
     clientTable:  { width: "100%", borderCollapse: "collapse" },
-    clientTh:     { background: "#0a1e30", padding: "10px 12px", textAlign: "left", color: "#c0d8f0", fontSize: 13, fontWeight: 800, borderBottom: "2px solid #1a3a5c", letterSpacing: "0.4px" },
-    clientTd:     { padding: "8px 12px", borderBottom: "1px solid #0f2030", fontSize: 12 },
+    clientTh:     { background: "#0a1e30", padding: "14px 16px", textAlign: "left", color: "#c0d8f0", fontSize: 15, fontWeight: 800, borderBottom: "2px solid #1a3a5c", letterSpacing: "0.4px" },
+    clientTd:     { padding: "13px 16px", borderBottom: "1px solid #0f2030", fontSize: 14 },
     clientRow:    { background: "#07131f" },
     overdueRow:   { background: "#150c0c" },
-    badge:        { padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 600 },
-    empty:        { textAlign: "center", padding: 48, color: "#5a7a9a" },
-    overlay:      { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 },
-    modalBox:     { background: "#0d1e2e", border: "1px solid #1a3a5c", borderRadius: 12, padding: 24, width: 460, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto" },
-    modalTitle:   { margin: "0 0 4px", color: "#d0e4f7", fontSize: 16 },
-    label:        { display: "block", color: "#8b9db5", fontSize: 11, marginBottom: 4, marginTop: 12 },
-    input:        { width: "100%", background: "#07131f", border: "1px solid #1a3a5c", borderRadius: 6, color: "#d0e4f7", padding: "7px 10px", fontSize: 13, boxSizing: "border-box" },
-    modalActions: { display: "flex", gap: 8, marginTop: 20, justifyContent: "flex-end" },
-    saveBtn:      { background: "#1a4a6b", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "8px 18px", cursor: "pointer", fontWeight: 600, fontSize: 13 },
-    cancelBtn:    { background: "none", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13 },
-    deleteBtn:    { background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "8px 14px", cursor: "pointer", marginRight: "auto", fontSize: 13 },
-    stbBtn:       { background: "none", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 },
-    stbActive:    { background: "#1a3a5c", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-    crmCard:      { display: "flex", alignItems: "center", gap: 12, background: "#0a1e30", borderRadius: 8, padding: "12px 14px", marginBottom: 4 },
+    badge:        { padding: "5px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600 },
+    empty:        { textAlign: "center", padding: 64, color: "#5a7a9a", fontSize: 17 },
+    overlay:      { position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 },
+    modalBox:     { background: "#0d1e2e", border: "2px solid #1a3a5c", borderRadius: 14, padding: 32, width: 500, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto" },
+    modalTitle:   { margin: "0 0 6px", color: "#d0e4f7", fontSize: 20, fontWeight: 700 },
+    label:        { display: "block", color: "#8b9db5", fontSize: 14, marginBottom: 6, marginTop: 18, fontWeight: 600 },
+    input:        { width: "100%", background: "#07131f", border: "2px solid #1a3a5c", borderRadius: 8, color: "#d0e4f7", padding: "11px 14px", fontSize: 15, boxSizing: "border-box" },
+    modalActions: { display: "flex", gap: 10, marginTop: 28, justifyContent: "flex-end" },
+    saveBtn:      { background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "12px 24px", cursor: "pointer", fontWeight: 700, fontSize: 15 },
+    cancelBtn:    { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "12px 22px", cursor: "pointer", fontSize: 15 },
+    deleteBtn:    { background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "12px 18px", cursor: "pointer", marginRight: "auto", fontSize: 15 },
+    stbBtn:       { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "9px 18px", cursor: "pointer", fontSize: 14 },
+    stbActive:    { background: "#1a3a5c", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "9px 18px", cursor: "pointer", fontSize: 14, fontWeight: 700 },
+    crmCard:      { display: "flex", alignItems: "center", gap: 14, background: "#0a1e30", borderRadius: 10, padding: "14px 18px", marginBottom: 6 },
   };
 
   const filteredClients = clients
     .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || "").includes(search) || (c.email || "").toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => nameSort === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+
+  if (!authed) {
+    return <LoginGate onAuth={() => setAuthed(true)} />;
+  }
 
   return (
     <div style={S.root}>
@@ -365,13 +424,14 @@ export default function App() {
           <div><div style={S.logoText}>BrokerScheduler</div><div style={S.logoSub}>Financial Advisory</div></div>
         </div>
         <nav style={S.nav}>
-          {[["schedule","📅 Schedule"],["clients",`👤 Clients (${clients.length})`],["overdue",`⚠️ Overdue (${overdueClients.length})`]].map(([id, label]) => (
+          {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`]].map(([id, label]) => (
             <button key={id} style={tab === id ? S.navActive : S.navBtn} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          {loading && <span style={{ color: "#5a7a9a", fontSize: 12 }}>⏳ Connecting…</span>}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {loading && <span style={{ color: "#5a7a9a", fontSize: 14 }}>⏳ Connecting…</span>}
           <button style={S.iconBtn} onClick={() => setSOp(true)}>⚙️ Settings</button>
+          <button style={S.lockBtn} onClick={() => setAuthed(false)}>🔒 Lock</button>
         </div>
       </header>
 
@@ -385,7 +445,7 @@ export default function App() {
               <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, 7))}>Next →</button>
             </div>
             <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
-              + New Appointment
+              ➕ Book New Appointment
             </button>
           </div>
           <div style={{ overflowX: "auto" }}>
@@ -431,7 +491,7 @@ export default function App() {
                                 ? (appt.duration === 2 ? "#1a4a30" : appt.duration === 1.5 ? "#163d28" : "#122f20")
                                 : (appt.duration === 2 ? "#1a4a6b" : appt.duration === 1.5 ? "#163d5a" : "#122f48");
                               return (
-                                <div key={person} style={{ ...S.apptCell, height: `${rows * 28}px`, background: bg, cursor: "pointer", borderLeft: `2px solid ${isStaff ? "#4caf73" : "#4db8ff"}` }} onClick={() => openEditAppt(appt)}>
+                                <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, background: bg, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#4caf73" : "#4db8ff"}` }} onClick={() => openEditAppt(appt)}>
                                   <div style={{ ...S.apptName, color: isStaff ? "#ccf0e0" : S.apptName.color }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
                                   {appt.duration !== 1 && <div style={{ ...S.apptDur, color: isStaff ? "#4caf73" : S.apptDur.color }}>{appt.duration}h</div>}
                                   {appt.notes && <div style={S.apptNotes}>{appt.notes}</div>}
@@ -542,24 +602,42 @@ export default function App() {
                     <td style={S.clientTd}>{st.last ? fmtFull(st.last) : <span style={{ color: "#5a7a9a" }}>Never</span>}</td>
                     <td style={S.clientTd}>{st.next ? fmtFull(st.next) : <span style={{ color: "#ff9a3c" }}>None scheduled</span>}</td>
                     <td style={S.clientTd}>
-                      <span style={{ ...S.badge, background: overdue ? "#7a2020" : st.next ? "#1a4a2a" : "#1a2a3a", color: overdue ? "#ff6b6b" : st.next ? "#4caf73" : "#8b9db5" }}>
-                        {overdue ? "⚠️ Overdue" : st.next ? "✓ Scheduled" : st.last ? "No future appt" : "New"}
-                      </span>
+                      {(() => {
+                        const autoStatus = overdue ? "overdue" : st.next ? "scheduled" : st.last ? "no_future" : "new";
+                        const autoLabel = overdue ? "Auto: Overdue" : st.next ? "Auto: Scheduled" : st.last ? "Auto: No appt" : "Auto: New";
+                        const manual = clientStatuses[c.id] || "";
+                        const effectiveStatus = manual || autoStatus;
+                        const sc = { overdue: { bg: "#7a2020", col: "#ff6b6b" }, scheduled: { bg: "#1a4a2a", col: "#4caf73" }, active: { bg: "#1a3a1a", col: "#4caf73" }, vip: { bg: "#2a2808", col: "#e8c840" }, follow_up: { bg: "#0a2040", col: "#4db8ff" }, inactive: { bg: "#1a1a2a", col: "#9ba5b5" }, do_not_contact: { bg: "#2a0f0f", col: "#ff6b6b" }, no_future: { bg: "#1a2a3a", col: "#8b9db5" }, new: { bg: "#1a2a3a", col: "#8b9db5" } }[effectiveStatus] || { bg: "#1a2a3a", col: "#8b9db5" };
+                        return (
+                          <select value={manual} onChange={e => setClientStatus(c.id, e.target.value)}
+                            style={{ background: sc.bg, color: sc.col, border: `2px solid ${sc.col}66`, borderRadius: 8, cursor: "pointer", padding: "5px 10px", fontSize: 13, fontWeight: 600 }}>
+                            <option value="">{autoLabel}</option>
+                            <option value="active">Active</option>
+                            <option value="scheduled">✓ Scheduled</option>
+                            <option value="vip">⭐ VIP</option>
+                            <option value="follow_up">📞 Follow Up</option>
+                            <option value="overdue">⚠️ Overdue</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="do_not_contact">🚫 Do Not Contact</option>
+                          </select>
+                        );
+                      })()}
                     </td>
                     <td style={S.clientTd}>
-                      <button onClick={() => setNotesClient(c)}
-                        style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `1px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                        📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
-                      </button>
-                      <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: c.name, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
-                        style={{ background: "#1a3a5c", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
-                        📅 Book
-                      </button>
-
-                      <button onClick={() => deleteClient(c)}
-                        style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
-                        🗑 Delete
-                      </button>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button onClick={() => setNotesClient(c)}
+                          style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `2px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                          📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
+                        </button>
+                        <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: c.name, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
+                          style={{ background: "#1a3a5c", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                          📅 Book Appt
+                        </button>
+                        <button onClick={() => deleteClient(c)}
+                          style={{ background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                          🗑 Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -573,7 +651,7 @@ export default function App() {
       {tab === "overdue" && (
         <div style={S.page}>
           <div style={S.toolBar}>
-            <h2 style={S.sectionTitle}>⚠️ Overdue — No appointment in {overdueThreshold}+ days</h2>
+            <h2 style={S.sectionTitle}>⚠️ Clients Needing Attention — No appointment in {overdueThreshold}+ days</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ color: "#8b9db5", fontSize: 13 }}>Threshold:</label>
               <input type="number" style={{ ...S.searchInput, width: 70 }} value={overdueThreshold} onChange={e => setODT(Number(e.target.value))} />
@@ -598,14 +676,16 @@ export default function App() {
                         <td style={S.clientTd}>{st.last ? fmtFull(st.last) : <span style={{ color: "#5a7a9a" }}>Never</span>}</td>
                         <td style={{ ...S.clientTd, color: "#ff6b6b", fontWeight: 700 }}>{ds === Infinity ? "Never" : `${ds} days`}</td>
                         <td style={S.clientTd}>
-                          <button onClick={() => setNotesClient(c)}
-                            style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `1px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
-                            📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
-                          </button>
-                          <button onClick={() => deleteClient(c)}
-                            style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
-                            🗑 Delete
-                          </button>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button onClick={() => setNotesClient(c)}
+                              style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `2px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
+                            </button>
+                            <button onClick={() => deleteClient(c)}
+                              style={{ background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              🗑 Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
