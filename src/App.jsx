@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ImportedFromBadge from './components/ImportedFromBadge';
 import NotesModal from './components/NotesModal';
-import { WORKER_URL, DEFAULT_BROKERS, HOURS, SLOT_LENGTHS, DAYS } from './utils/constants';
+import { WORKER_URL, DEFAULT_BROKERS, HOURS, DAYS } from './utils/constants';
 import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabel } from './utils/dateUtils';
 import { loadAll, upsertAppt, upsertAppts, deleteApptDB, upsertClient, upsertClients, insertNote, saveSetting, deleteClientDB } from './utils/supabase';
 import { parseCSV } from './utils/csvParser';
@@ -210,14 +210,17 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, duration: 1, clientName: "", notes: "" }); setModal({ type: "new" }); }
-  function openEditAppt(appt) { setForm({ ...appt }); setModal({ type: "edit" }); }
+  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "" }); setModal({ type: "new" }); }
+  function openEditAppt(appt) { setForm({ ...appt, endHour: appt.startHour + appt.duration }); setModal({ type: "edit" }); }
 
   function saveAppt() {
     if (!form.clientName.trim()) return;
+    const duration = Math.round((form.endHour - form.startHour) * 2) / 2;
+    if (duration <= 0) return;
+    const apptData = { broker: form.broker, date: form.date, startHour: form.startHour, duration, clientName: form.clientName, notes: form.notes || "", fromPipedrive: form.fromPipedrive || false };
     if (modal.type === "new") {
       const id = Date.now().toString();
-      const newAppt = { ...form, id };
+      const newAppt = { ...apptData, id };
       setAppts(prev => [...prev, newAppt]);
       upsertAppt(newAppt);
       if (!clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase())) {
@@ -226,8 +229,9 @@ export default function App() {
         upsertClient(newClient);
       }
     } else {
-      setAppts(prev => prev.map(a => a.id === form.id ? { ...form } : a));
-      upsertAppt(form);
+      const updatedAppt = { ...apptData, id: form.id };
+      setAppts(prev => prev.map(a => a.id === form.id ? updatedAppt : a));
+      upsertAppt(updatedAppt);
     }
     setModal(null);
   }
@@ -380,7 +384,7 @@ export default function App() {
               <button style={S.weekBtn} onClick={() => setWeekStart(getMondayOf(TODAY))}>Today</button>
               <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, 7))}>Next →</button>
             </div>
-            <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, duration: 1, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
+            <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
               + New Appointment
             </button>
           </div>
@@ -409,7 +413,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {HOURS.filter(h => h < 17).map(hour => (
+                {HOURS.filter(h => h < 20).map(hour => (
                   <tr key={hour} style={hour % 1 === 0 ? S.trFull : S.trHalf}>
                     <td style={S.timeCell}>{hour % 1 === 0 ? hourLabel(hour) : ""}</td>
                     {weekDays.map(({ name, date }) => (
@@ -547,10 +551,11 @@ export default function App() {
                         style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `1px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>
                         📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
                       </button>
-                      <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, duration: 1, clientName: c.name, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
+                      <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: c.name, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
                         style={{ background: "#1a3a5c", border: "1px solid #4db8ff", color: "#4db8ff", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
                         📅 Book
                       </button>
+
                       <button onClick={() => deleteClient(c)}
                         style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 6 }}>
                         🗑 Delete
@@ -676,12 +681,15 @@ export default function App() {
             <label style={S.label}>Date</label>
             <input type="date" style={S.input} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             <label style={S.label}>Start Time</label>
-            <select style={S.input} value={form.startHour} onChange={e => setForm(f => ({ ...f, startHour: parseFloat(e.target.value) }))}>
-              {HOURS.filter(h => h < 17).map(h => <option key={h} value={h}>{hourLabel(h)}</option>)}
+            <select style={S.input} value={form.startHour} onChange={e => {
+              const s = parseFloat(e.target.value);
+              setForm(f => ({ ...f, startHour: s, endHour: f.endHour > s ? f.endHour : Math.min(s + 1, 20) }));
+            }}>
+              {HOURS.filter(h => h < 20).map(h => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
-            <label style={S.label}>Duration</label>
-            <select style={S.input} value={form.duration} onChange={e => setForm(f => ({ ...f, duration: parseFloat(e.target.value) }))}>
-              {SLOT_LENGTHS.map(l => <option key={l} value={l}>{l === 1 ? "1 hour" : l === 1.5 ? "1.5 hours" : "2 hours"}</option>)}
+            <label style={S.label}>End Time</label>
+            <select style={S.input} value={form.endHour} onChange={e => setForm(f => ({ ...f, endHour: parseFloat(e.target.value) }))}>
+              {HOURS.filter(h => h > (form.startHour ?? 5) && h <= 20).map(h => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
             <label style={S.label}>Client Name</label>
             <input style={S.input} list="client-list" value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Type or select…" />
