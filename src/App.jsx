@@ -16,9 +16,10 @@ export default function App() {
   const [modal, setModal]           = useState(null);
   const [form, setForm]             = useState({});
   const [search, setSearch]         = useState("");
-  const [nameSort, setNameSort]     = useState("asc");
-  const [overdueThreshold, setODT]  = useState(90);
-  const [settingsTab, setSTB]       = useState("brokers");
+  const [nameSort, setNameSort]         = useState("asc");
+  const [overdueThreshold, setODT]      = useState(90);
+  const [settingsTab, setSTB]           = useState("brokers");
+  const [selectedClients, setSelClients] = useState(new Set());
   const [staff, setStaff]           = useState([]);
   const [settingsOpen, setSOp]      = useState(false);
   const [creds, setCreds]           = useState({ redtailKey: "", redtailUser: "", pipedriveToken: "" });
@@ -248,6 +249,43 @@ export default function App() {
     deleteClientDB(client.id, client.name);
   }
 
+  function toggleSelectClient(id) {
+    setSelClients(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  function toggleSelectAll() {
+    setSelClients(prev => prev.size === filteredClients.length ? new Set() : new Set(filteredClients.map(c => c.id)));
+  }
+
+  function bulkAssign(person) {
+    if (!person) return;
+    setClients(prev => prev.map(c => {
+      if (!selectedClients.has(c.id)) return c;
+      const updated = { ...c, manualBrokers: [...new Set([...(c.manualBrokers || []), person])] };
+      upsertClient(updated);
+      return updated;
+    }));
+  }
+
+  function bulkClearAssignments() {
+    setClients(prev => prev.map(c => {
+      if (!selectedClients.has(c.id)) return c;
+      const updated = { ...c, manualBrokers: [] };
+      upsertClient(updated);
+      return updated;
+    }));
+  }
+
+  function bulkDelete() {
+    if (!window.confirm(`Delete ${selectedClients.size} client${selectedClients.size > 1 ? "s" : ""} and all their appointments and notes? This cannot be undone.`)) return;
+    const toDelete = clients.filter(c => selectedClients.has(c.id));
+    setClients(prev => prev.filter(c => !selectedClients.has(c.id)));
+    setAppts(prev => prev.filter(a => !toDelete.find(c => c.name === a.clientName)));
+    setNotes(prev => { const n = { ...prev }; toDelete.forEach(c => delete n[c.name]); return n; });
+    toDelete.forEach(c => deleteClientDB(c.id, c.name));
+    setSelClients(new Set());
+  }
+
   function apptAt(broker, date, hour) {
     return appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === hour);
   }
@@ -426,9 +464,39 @@ export default function App() {
               <button style={S.addBtn} onClick={() => { setForm({ name: "", phone: "", email: "", contactSource: "" }); setModal({ type: "addClient" }); }}>+ Add Client</button>
             </div>
           </div>
+
+          {selectedClients.size > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#0f2540", border: "1px solid #2a5a9c", borderRadius: 8, padding: "10px 14px", marginBottom: 12, flexWrap: "wrap" }}>
+              <span style={{ color: "#4db8ff", fontWeight: 700, fontSize: 13, marginRight: 4 }}>{selectedClients.size} selected</span>
+              <select style={{ background: "#0a1e30", border: "1px solid #1a3a5c", color: "#d0e4f7", borderRadius: 6, padding: "5px 8px", fontSize: 12, cursor: "pointer" }}
+                defaultValue=""
+                onChange={e => { bulkAssign(e.target.value); e.target.value = ""; }}>
+                <option value="" disabled>Assign broker / staff…</option>
+                {brokers.length > 0 && <optgroup label="Brokers">{brokers.map(b => <option key={b} value={b}>{b}</option>)}</optgroup>}
+                {staff.length > 0 && <optgroup label="Staff">{staff.map(s => <option key={s} value={s}>{s}</option>)}</optgroup>}
+              </select>
+              <button onClick={bulkClearAssignments}
+                style={{ background: "#1a2a1a", border: "1px solid #4a7a4a", color: "#8bd08b", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
+                Clear Assignments
+              </button>
+              <button onClick={bulkDelete}
+                style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
+                🗑 Delete Selected
+              </button>
+              <button onClick={() => setSelClients(new Set())}
+                style={{ background: "none", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginLeft: "auto" }}>
+                Deselect All
+              </button>
+            </div>
+          )}
+
           <table style={S.clientTable}>
             <thead>
               <tr>
+                <th style={{ ...S.clientTh, width: 36, textAlign: "center" }}>
+                  <input type="checkbox" checked={filteredClients.length > 0 && selectedClients.size === filteredClients.length}
+                    onChange={toggleSelectAll} style={{ cursor: "pointer", accentColor: "#4db8ff" }} />
+                </th>
                 <th style={{ ...S.clientTh, cursor: "pointer", userSelect: "none" }} onClick={() => setNameSort(s => s === "asc" ? "desc" : "asc")}>
                   Client {nameSort === "asc" ? "▲" : "▼"}
                 </th>
@@ -445,8 +513,12 @@ export default function App() {
                 const manualBrokers = c.manualBrokers || [];
                 const allBrokers = manualBrokers.length > 0 ? manualBrokers : (autoBroker ? [autoBroker] : []);
                 const clientNoteCount = (notes[c.name] || []).length;
+                const isSelected = selectedClients.has(c.id);
                 return (
-                  <tr key={c.id} style={overdue ? S.overdueRow : S.clientRow}>
+                  <tr key={c.id} style={{ ...(overdue ? S.overdueRow : S.clientRow), ...(isSelected ? { background: "#0d2540", outline: "1px solid #2a5a9c" } : {}) }}>
+                    <td style={{ ...S.clientTd, textAlign: "center" }}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelectClient(c.id)} style={{ cursor: "pointer", accentColor: "#4db8ff" }} />
+                    </td>
                     <td style={S.clientTd}><strong>{c.name}</strong></td>
                     <td style={S.clientTd}>{c.phone || "—"}</td>
                     <td style={S.clientTd}>{c.email || "—"}</td>
