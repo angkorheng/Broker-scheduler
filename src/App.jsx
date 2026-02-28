@@ -351,6 +351,113 @@ export default function App() {
     deleteClientDB(client.id, client.name);
   }
 
+  function generateReport() {
+    const weekAppts = appointments.filter(a => weekDays.some(w => dateKey(w.date) === a.date));
+    if (weekAppts.length === 0) { alert("No appointments scheduled for this week."); return; }
+
+    const now = new Date();
+    const generatedOn  = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    const generatedAt  = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const wStart       = weekDays[0].date;
+    const wEnd         = weekDays[6].date;
+    const weekLabel    = wStart.toLocaleDateString("en-US", { month: "long", day: "numeric" }) + " \u2013 " + wEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    const brokerCounts = {};
+    let totalAppts = 0;
+    let daySectionsHtml = "";
+
+    weekDays.forEach(({ date }) => {
+      const dk = dateKey(date);
+      const dayAppts = weekAppts
+        .filter(a => a.date === dk)
+        .sort((a, b) => a.startHour - b.startHour || brokers.indexOf(a.broker) - brokers.indexOf(b.broker));
+      if (dayAppts.length === 0) return;
+      totalAppts += dayAppts.length;
+
+      const dateLabel = date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      const rowsHtml = dayAppts.map(a => {
+        brokerCounts[a.broker] = (brokerCounts[a.broker] || 0) + 1;
+        const durLabel = a.duration === 0.5 ? "30 min" : a.duration === 1 ? "1 hr" : a.duration + " hrs";
+        return "<tr>"
+          + "<td class='time'>" + hourLabel(a.startHour) + " &ndash; " + hourLabel(a.startHour + a.duration) + "</td>"
+          + "<td class='client'>" + a.clientName + "</td>"
+          + "<td>" + a.broker + "</td>"
+          + "<td class='center'>" + durLabel + "</td>"
+          + "<td class='notes'>" + (a.notes || "&mdash;") + "</td>"
+          + "</tr>";
+      }).join("");
+
+      daySectionsHtml += "<div class='day-block'>"
+        + "<div class='day-title'>" + dateLabel + "</div>"
+        + "<table><thead><tr>"
+        + "<th>Time</th><th>Client</th><th>Advisor</th><th style='text-align:center'>Duration</th><th>Notes</th>"
+        + "</tr></thead><tbody>" + rowsHtml + "</tbody></table></div>";
+    });
+
+    const brokerRowsHtml = Object.entries(brokerCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([b, n]) => "<tr><td>" + b + "</td><td class='num'>" + n + " appt" + (n !== 1 ? "s" : "") + "</td></tr>")
+      .join("");
+
+    const css = [
+      "* { margin:0; padding:0; box-sizing:border-box; }",
+      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:13px; color:#1c2d3e; background:#fff; padding:44px 52px; }",
+      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1a3a5c; padding-bottom:22px; margin-bottom:32px; }",
+      ".company { font-size:26px; font-weight:800; color:#1a3a5c; letter-spacing:-0.5px; }",
+      ".tagline { font-size:13px; color:#6a8aaa; margin-top:3px; }",
+      ".hdr-right { text-align:right; }",
+      ".rpt-title { font-size:18px; font-weight:700; color:#2a4a6c; }",
+      ".meta { margin-top:6px; font-size:12px; color:#6a8aaa; line-height:1.9; }",
+      ".meta strong { color:#1c2d3e; }",
+      ".day-block { margin-bottom:28px; break-inside:avoid; }",
+      ".day-title { background:#1a3a5c; color:#fff; font-size:13px; font-weight:700; padding:8px 14px; border-radius:4px 4px 0 0; letter-spacing:0.2px; }",
+      "table { width:100%; border-collapse:collapse; }",
+      "thead tr { background:#f0f4f8; }",
+      "th { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:#5a7a9a; padding:8px 12px; text-align:left; border-bottom:2px solid #d8e4f0; }",
+      "td { padding:9px 12px; border-bottom:1px solid #e8eff6; vertical-align:top; }",
+      "tr:last-child td { border-bottom:none; }",
+      "tr:nth-child(even) td { background:#f9fbfd; }",
+      "td.time { white-space:nowrap; font-weight:600; color:#2a4a6c; width:160px; }",
+      "td.client { font-weight:700; }",
+      "td.center { text-align:center; }",
+      "td.notes { color:#5a7a9a; font-style:italic; }",
+      ".summary { display:flex; gap:40px; align-items:flex-start; background:#f0f4f8; border:1px solid #d0dde8; border-radius:6px; padding:20px 28px; margin-top:32px; break-inside:avoid; }",
+      ".sum-block h3 { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#6a8aaa; margin-bottom:10px; }",
+      ".big-num { font-size:38px; font-weight:800; color:#1a3a5c; line-height:1; }",
+      ".big-label { font-size:12px; color:#6a8aaa; margin-top:4px; }",
+      ".summary table { background:none; } .summary td { padding:4px 8px; border:none; background:none !important; font-size:12px; } .summary td.num { text-align:right; font-weight:700; color:#1a3a5c; }",
+      ".divider { width:1px; background:#d0dde8; align-self:stretch; }",
+      ".footer { margin-top:36px; padding-top:14px; border-top:1px solid #d0dde8; display:flex; justify-content:space-between; font-size:11px; color:#9aacbc; }",
+      "@media print { body { padding:20px 28px; } .day-block { break-inside:avoid; } }",
+    ].join(" ");
+
+    const html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+      + "<title>Cinergy Financial \u2014 Weekly Report " + weekLabel + "</title>"
+      + "<style>" + css + "</style></head><body>"
+      + "<div class='hdr'>"
+      +   "<div><div class='company'>Cinergy Financial</div><div class='tagline'>Financial Advisory Services</div></div>"
+      +   "<div class='hdr-right'><div class='rpt-title'>Weekly Appointment Report</div>"
+      +   "<div class='meta'><strong>Period:</strong> " + weekLabel + "<br><strong>Generated:</strong> " + generatedOn + " at " + generatedAt + "</div></div>"
+      + "</div>"
+      + daySectionsHtml
+      + "<div class='summary'>"
+      +   "<div class='sum-block'><h3>Total Appointments</h3><div class='big-num'>" + totalAppts + "</div><div class='big-label'>This Week</div></div>"
+      +   "<div class='divider'></div>"
+      +   "<div class='sum-block'><h3>By Advisor</h3><table><tbody>" + brokerRowsHtml + "</tbody></table></div>"
+      +   "<div class='divider'></div>"
+      +   "<div class='sum-block'><h3>Week Period</h3><div style='font-size:14px;font-weight:700;color:#1a3a5c;'>" + weekLabel + "</div>"
+      +   "<div style='font-size:12px;color:#6a8aaa;margin-top:4px;'>Mon \u2013 Sun</div></div>"
+      + "</div>"
+      + "<div class='footer'><span>Cinergy Financial Scheduler &mdash; Confidential &amp; Internal Use Only</span><span>Generated " + generatedOn + "</span></div>"
+      + "<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>"
+      + "</body></html>";
+
+    const win = window.open("", "_blank", "width=960,height=720");
+    if (!win) { alert("Please allow pop-ups to generate the report."); return; }
+    win.document.write(html);
+    win.document.close();
+  }
+
   function toggleSelectClient(id) {
     setSelClients(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
@@ -438,6 +545,7 @@ export default function App() {
     sectionTitle: { margin: 0, fontSize: 22, color: "#d0e4f7", fontWeight: 700 },
     searchInput:  { background: "#0a1e30", border: "2px solid #1a3a5c", borderRadius: 8, color: "#d0e4f7", padding: "10px 16px", fontSize: 15 },
     addBtn:       { background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 700 },
+    reportBtn:    { background: "#1a2a1a", border: "2px solid #4caf73", color: "#4caf73", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 15, fontWeight: 600 },
     clientTable:  { width: "100%", borderCollapse: "collapse" },
     clientTh:     { background: "#0a1e30", padding: "14px 16px", textAlign: "left", color: "#c0d8f0", fontSize: 15, fontWeight: 800, borderBottom: "2px solid #1a3a5c", letterSpacing: "0.4px" },
     clientTd:     { padding: "13px 16px", borderBottom: "1px solid #0f2030", fontSize: 14 },
@@ -495,9 +603,12 @@ export default function App() {
               <button style={S.weekBtn} onClick={() => setWeekStart(getMondayOf(TODAY))}>Today</button>
               <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, 7))}>Next →</button>
             </div>
-            <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
-              ➕ Book New Appointment
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={S.reportBtn} onClick={generateReport}>📊 Generate Report</button>
+              <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
+                ➕ Book New Appointment
+              </button>
+            </div>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={S.grid}>
