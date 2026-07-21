@@ -40,6 +40,7 @@ export async function loadAll() {
     location: a.location || '', confirmed: a.confirmed || false,
     status: a.status || 'scheduled', cancelReason: a.cancel_reason || '',
     subject: a.subject || '', fromRedtail: a.from_redtail || false,
+    isClientMeeting: a.is_client_meeting !== false,
   }));
 
   const clients = (clientsRes.data || []).map(c => ({
@@ -81,6 +82,7 @@ export async function upsertAppt(appt) {
     location: appt.location || '', confirmed: appt.confirmed || false,
     status: appt.status || 'scheduled', cancel_reason: appt.cancelReason || '',
     subject: appt.subject || '', from_redtail: appt.fromRedtail || false,
+    is_client_meeting: appt.isClientMeeting !== false,
     updated_at: new Date().toISOString(),
   });
   check('upsertAppt', res);
@@ -95,6 +97,7 @@ export async function upsertAppts(appts) {
     location: a.location || '', confirmed: a.confirmed || false,
     status: a.status || 'scheduled', cancel_reason: a.cancelReason || '',
     subject: a.subject || '', from_redtail: a.fromRedtail || false,
+    is_client_meeting: a.isClientMeeting !== false,
     updated_at: new Date().toISOString(),
   })));
   check('upsertAppts', res);

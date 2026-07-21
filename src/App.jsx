@@ -325,11 +325,11 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled", dateLastAcctSummary: "", rmd70Half: false, availableDpps: "", availableIfs: "", availableNotes: "" }); setModal({ type: "new" }); }
+  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled", isClientMeeting: true, dateLastAcctSummary: "", rmd70Half: false, availableDpps: "", availableIfs: "", availableNotes: "" }); setModal({ type: "new" }); }
   function openEditAppt(appt) {
     const c = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
     setForm({
-      ...appt, endHour: appt.startHour + appt.duration,
+      ...appt, endHour: appt.startHour + appt.duration, isClientMeeting: appt.isClientMeeting !== false,
       dateLastAcctSummary: c?.dateLastAcctSummary || "", rmd70Half: c?.rmd70Half || false,
       availableDpps: c?.availableDpps ?? "", availableIfs: c?.availableIfs ?? "", availableNotes: c?.availableNotes || "",
     });
@@ -340,13 +340,14 @@ export default function App() {
     if (!form.clientName.trim()) return;
     const duration = Math.round((form.endHour - form.startHour) * 2) / 2;
     if (duration <= 0) return;
-    const matchedClient = clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase());
+    const isClientMeeting = form.isClientMeeting !== false;
+    const matchedClient = isClientMeeting ? clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase()) : null;
     const apptData = {
       broker: form.broker, date: form.date, startHour: form.startHour, duration,
       clientName: form.clientName, clientId: matchedClient ? matchedClient.id : null,
       notes: form.notes || "", subject: form.subject || "", location: form.location || "",
       confirmed: form.confirmed || false, status: form.status || "scheduled",
-      fromRedtail: form.fromRedtail || false,
+      fromRedtail: form.fromRedtail || false, isClientMeeting,
     };
     const financialFields = {
       dateLastAcctSummary: form.dateLastAcctSummary || null,
@@ -360,14 +361,14 @@ export default function App() {
       const newAppt = { ...apptData, id };
       setAppts(prev => [...prev, newAppt]);
       upsertAppt(newAppt);
-      if (!matchedClient) {
+      if (isClientMeeting && !matchedClient) {
         const newClientId = crypto.randomUUID();
         const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker, ...financialFields };
         newAppt.clientId = newClientId;
         setClients(prev => [...prev, newClient]);
         upsertClient(newClient);
         upsertAppt(newAppt); // re-save with the linked clientId now that we have it
-      } else {
+      } else if (isClientMeeting && matchedClient) {
         const updatedClient = { ...matchedClient, ...financialFields };
         setClients(prev => prev.map(c => c.id === matchedClient.id ? updatedClient : c));
         upsertClient(updatedClient);
@@ -376,7 +377,7 @@ export default function App() {
       const updatedAppt = { ...apptData, id: form.id };
       setAppts(prev => prev.map(a => a.id === form.id ? updatedAppt : a));
       upsertAppt(updatedAppt);
-      if (matchedClient) {
+      if (isClientMeeting && matchedClient) {
         const updatedClient = { ...matchedClient, ...financialFields };
         setClients(prev => prev.map(c => c.id === matchedClient.id ? updatedClient : c));
         upsertClient(updatedClient);
@@ -709,6 +710,7 @@ export default function App() {
                             const rows = appt.duration / 0.5;
                             const hasNotes = (notes[appt.clientId] || []).length > 0;
                             const isCancelled = appt.status === "cancelled";
+                            const isInternal = appt.isClientMeeting === false;
                             const apptClient = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
                             const dpps = apptClient?.availableDpps;
                             const ifs = apptClient?.availableIfs;
@@ -716,13 +718,14 @@ export default function App() {
                             cells.push(
                               <div key={hour} onClick={() => openEditAppt(appt)} style={{
                                 height: `${rows * 44 - 4}px`, margin: "2px 6px", padding: "6px 10px", borderRadius: 6, cursor: "pointer",
-                                background: isCancelled ? "#FBEEEC" : "#FFFFFF", boxShadow: isCancelled ? "none" : "0 1px 3px rgba(28,43,58,0.1)",
-                                border: isCancelled ? "1px dashed #B0463B" : "none",
-                                borderLeft: `3px solid ${isCancelled ? "#B0463B" : isStaff ? "#3F8361" : "#2F5D8A"}`,
+                                background: isCancelled ? "#FBEEEC" : isInternal ? "#F6F7FA" : "#FFFFFF",
+                                boxShadow: isCancelled ? "none" : "0 1px 3px rgba(28,43,58,0.1)",
+                                border: isCancelled ? "1px dashed #B0463B" : isInternal ? "1px dashed #B7C6D6" : "none",
+                                borderLeft: `3px solid ${isCancelled ? "#B0463B" : isInternal ? "#8FA0AF" : isStaff ? "#3F8361" : "#2F5D8A"}`,
                                 opacity: isCancelled ? 0.7 : 1,
                               }}>
-                                <div style={{ fontSize: 11.5, color: "#8FA0AF", fontWeight: 600 }}>{hourLabel(hour)}</div>
-                                <div style={{ fontWeight: 700, fontSize: 13.5, color: "#1C2B3A", textDecoration: isCancelled ? "line-through" : "none" }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                <div style={{ fontSize: 11.5, color: "#8FA0AF", fontWeight: 600 }}>{hourLabel(hour)}{isInternal ? "  ·  Internal" : ""}</div>
+                                <div style={{ fontWeight: 700, fontSize: 13.5, color: isInternal ? "#6B7C8C" : "#1C2B3A", fontStyle: isInternal ? "italic" : "normal", textDecoration: isCancelled ? "line-through" : "none" }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
                                 {(dpps != null || ifs != null) && (
                                   <div style={{ fontSize: 11, fontWeight: 600, color: "#3F8361", marginTop: 1 }}>
                                     {dpps != null && `DPP ${fmtMoney(dpps)}`}{dpps != null && ifs != null && "  ·  "}{ifs != null && `IF ${fmtMoney(ifs)}`}
@@ -1096,10 +1099,17 @@ export default function App() {
             <select style={S.input} value={form.endHour} onChange={e => setForm(f => ({ ...f, endHour: parseFloat(e.target.value) }))}>
               {HOURS.filter(h => h > (form.startHour ?? 5) && h <= 20).map(h => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
-            <label style={S.label}>Client Name</label>
-            <input style={S.input} list="client-list" value={form.clientName} onChange={e => {
+            <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+              <input type="checkbox" checked={form.isClientMeeting !== false} onChange={e => setForm(f => ({ ...f, isClientMeeting: e.target.checked }))} />
+              This is a client meeting
+            </label>
+            {form.isClientMeeting === false && (
+              <div style={{ fontSize: 12, color: "#8FA0AF", marginTop: -2, marginBottom: 4 }}>Internal / vendor / staff meeting — won't be added to the Client Directory.</div>
+            )}
+            <label style={S.label}>{form.isClientMeeting === false ? "Meeting Title" : "Client Name"}</label>
+            <input style={S.input} list={form.isClientMeeting === false ? undefined : "client-list"} value={form.clientName} onChange={e => {
               const name = e.target.value;
-              const matched = clients.find(c => c.name.toLowerCase() === name.toLowerCase());
+              const matched = form.isClientMeeting === false ? null : clients.find(c => c.name.toLowerCase() === name.toLowerCase());
               setForm(f => ({
                 ...f, clientName: name,
                 ...(matched ? {
@@ -1110,8 +1120,8 @@ export default function App() {
                   availableNotes: matched.availableNotes || "",
                 } : {}),
               }));
-            }} placeholder="Type or select…" />
-            <datalist id="client-list">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>
+            }} placeholder={form.isClientMeeting === false ? "e.g. Team Meeting, IT Vendor Call…" : "Type or select…"} />
+            {form.isClientMeeting !== false && <datalist id="client-list">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>}
             <label style={S.label}>Subject / Topic</label>
             <input style={S.input} value={form.subject || ""} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Oil and Gas, Delivery Meeting…" />
             <label style={S.label}>Location</label>
@@ -1129,21 +1139,23 @@ export default function App() {
             <label style={S.label}>Appointment Notes</label>
             <input style={S.input} value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional…" />
 
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #DCE3EA" }}>
-              <div style={{ color: "#2F5D8A", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💰 Report Fields</div>
-              <label style={S.label}>Date of Last Acct. Summary</label>
-              <input type="date" style={S.input} value={form.dateLastAcctSummary || ""} onChange={e => setForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
-              <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
-                <input type="checkbox" checked={form.rmd70Half || false} onChange={e => setForm(f => ({ ...f, rmd70Half: e.target.checked }))} />
-                RMD 70½ applies
-              </label>
-              <label style={S.label}>Available for DPPs ($)</label>
-              <input type="number" style={S.input} value={form.availableDpps ?? ""} onChange={e => setForm(f => ({ ...f, availableDpps: e.target.value }))} placeholder="e.g. 50000" />
-              <label style={S.label}>Available for IFs ($)</label>
-              <input type="number" style={S.input} value={form.availableIfs ?? ""} onChange={e => setForm(f => ({ ...f, availableIfs: e.target.value }))} placeholder="e.g. 25000" />
-              <label style={S.label}>Available for NOTES</label>
-              <input style={S.input} value={form.availableNotes || ""} onChange={e => setForm(f => ({ ...f, availableNotes: e.target.value }))} placeholder="Notes for the report…" />
-            </div>
+            {form.isClientMeeting !== false && (
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #DCE3EA" }}>
+                <div style={{ color: "#2F5D8A", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💰 Report Fields</div>
+                <label style={S.label}>Date of Last Acct. Summary</label>
+                <input type="date" style={S.input} value={form.dateLastAcctSummary || ""} onChange={e => setForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
+                <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={form.rmd70Half || false} onChange={e => setForm(f => ({ ...f, rmd70Half: e.target.checked }))} />
+                  RMD 70½ applies
+                </label>
+                <label style={S.label}>Available for DPPs ($)</label>
+                <input type="number" style={S.input} value={form.availableDpps ?? ""} onChange={e => setForm(f => ({ ...f, availableDpps: e.target.value }))} placeholder="e.g. 50000" />
+                <label style={S.label}>Available for IFs ($)</label>
+                <input type="number" style={S.input} value={form.availableIfs ?? ""} onChange={e => setForm(f => ({ ...f, availableIfs: e.target.value }))} placeholder="e.g. 25000" />
+                <label style={S.label}>Available for NOTES</label>
+                <input style={S.input} value={form.availableNotes || ""} onChange={e => setForm(f => ({ ...f, availableNotes: e.target.value }))} placeholder="Notes for the report…" />
+              </div>
+            )}
 
             <div style={S.modalActions}>
               {modal.type === "edit" && (
@@ -1155,10 +1167,12 @@ export default function App() {
                       ⚠ Cancel Meeting
                     </button>
                   )}
-                  <button style={{ ...S.cancelBtn, borderColor: "#3F8361", color: "#3F8361" }}
-                    onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("notes"); setNotesClient(c); } }}>
-                    📝 Meeting Notes
-                  </button>
+                  {form.isClientMeeting !== false && (
+                    <button style={{ ...S.cancelBtn, borderColor: "#3F8361", color: "#3F8361" }}
+                      onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("notes"); setNotesClient(c); } }}>
+                      📝 Meeting Notes
+                    </button>
+                  )}
                 </>
               )}
               <button style={S.cancelBtn} onClick={() => setModal(null)}>Close</button>
