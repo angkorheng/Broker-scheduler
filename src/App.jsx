@@ -18,27 +18,27 @@ function LoginGate({ onAuth }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#07131f", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Segoe UI',sans-serif" }}>
-      <div style={{ background: "#0d1e2e", border: "2px solid #1a3a5c", borderRadius: 16, padding: "48px 52px", width: 420, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
+    <div style={{ minHeight: "100vh", background: "#F6F7FA", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+      <div style={{ background: "#FFFFFF", border: "1px solid #DCE3EA", borderRadius: 16, padding: "48px 52px", width: 420, maxWidth: "90vw", boxShadow: "0 8px 32px rgba(28,43,58,0.16)" }}>
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{ fontSize: 52, marginBottom: 12 }}>📋</div>
-          <div style={{ fontWeight: 700, fontSize: 24, color: "#d0e4f7" }}>Cinergy Financial Scheduler</div>
-          <div style={{ fontSize: 15, color: "#5a7a9a", marginTop: 4 }}>Financial Advisory — Please sign in</div>
+          <div style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontWeight: 600, fontSize: 30, color: "#1C2B3A", letterSpacing: "0.2px" }}>Cinergy Financial</div>
+          <div style={{ width: 48, height: 2, background: "#2F5D8A", margin: "10px auto 14px" }} />
+          <div style={{ fontSize: 14, color: "#8FA0AF", letterSpacing: "0.3px" }}>Financial Advisory Services — Please sign in</div>
         </div>
-        <label style={{ display: "block", color: "#8b9db5", fontSize: 16, marginBottom: 8, fontWeight: 600 }}>Password</label>
+        <label style={{ display: "block", color: "#6B7C8C", fontSize: 16, marginBottom: 8, fontWeight: 600 }}>Password</label>
         <input
           type="password"
           value={pw}
           onChange={e => { setPw(e.target.value); setErr(false); }}
           onKeyDown={e => e.key === "Enter" && attempt()}
           autoFocus
-          style={{ width: "100%", background: "#07131f", border: `2px solid ${err ? "#7a2020" : "#1a3a5c"}`, borderRadius: 8, color: "#d0e4f7", padding: "13px 16px", fontSize: 17, boxSizing: "border-box", outline: "none" }}
+          style={{ width: "100%", background: "#F6F7FA", border: `2px solid ${err ? "#B0463B" : "#DCE3EA"}`, borderRadius: 8, color: "#1C2B3A", padding: "13px 16px", fontSize: 17, boxSizing: "border-box", outline: "none" }}
           placeholder="Enter your password…"
         />
-        {err && <div style={{ color: "#ff6b6b", fontSize: 15, marginTop: 10, fontWeight: 600 }}>❌ Incorrect password. Please try again.</div>}
+        {err && <div style={{ color: "#B0463B", fontSize: 15, marginTop: 10, fontWeight: 600 }}>❌ Incorrect password. Please try again.</div>}
         <button
           onClick={attempt}
-          style={{ marginTop: 22, width: "100%", background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "14px", cursor: "pointer", fontWeight: 700, fontSize: 17 }}>
+          style={{ marginTop: 22, width: "100%", background: "#E7EEF5", border: "2px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "14px", cursor: "pointer", fontWeight: 700, fontSize: 17 }}>
           🔓 Unlock
         </button>
       </div>
@@ -66,14 +66,14 @@ function CalendarPicker({ value, onChange }) {
   const cells = [...Array(firstDay).fill(null), ...Array.from({length: daysInMonth}, (_, i) => i+1)];
 
   return (
-    <div style={{ background: "#07131f", border: "2px solid #1a3a5c", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
+    <div style={{ background: "#F6F7FA", border: "2px solid #DCE3EA", borderRadius: 10, padding: "14px 16px", marginTop: 4 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <button type="button" onClick={prev} style={{ background: "none", border: "none", color: "#4db8ff", cursor: "pointer", fontSize: 22, padding: "0 8px", lineHeight: 1 }}>‹</button>
-        <span style={{ fontWeight: 700, color: "#d0e4f7", fontSize: 15 }}>{CAL_MONTHS[viewMonth]} {viewYear}</span>
-        <button type="button" onClick={next} style={{ background: "none", border: "none", color: "#4db8ff", cursor: "pointer", fontSize: 22, padding: "0 8px", lineHeight: 1 }}>›</button>
+        <button type="button" onClick={prev} style={{ background: "none", border: "none", color: "#2F5D8A", cursor: "pointer", fontSize: 22, padding: "0 8px", lineHeight: 1 }}>‹</button>
+        <span style={{ fontWeight: 700, color: "#1C2B3A", fontSize: 15 }}>{CAL_MONTHS[viewMonth]} {viewYear}</span>
+        <button type="button" onClick={next} style={{ background: "none", border: "none", color: "#2F5D8A", cursor: "pointer", fontSize: 22, padding: "0 8px", lineHeight: 1 }}>›</button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-        {CAL_DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#5a7a9a", fontWeight: 600, padding: "2px 0" }}>{d}</div>)}
+        {CAL_DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#8FA0AF", fontWeight: 600, padding: "2px 0" }}>{d}</div>)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {cells.map((d, i) => {
@@ -85,9 +85,9 @@ function CalendarPicker({ value, onChange }) {
           return (
             <div key={ds} onClick={() => onChange(ds)} style={{
               textAlign: "center", padding: "7px 0", borderRadius: 6, cursor: "pointer", fontSize: 13,
-              background: sel ? "#1a4a6b" : tod ? "#0f2a40" : "transparent",
-              color:      sel ? "#4db8ff" : tod ? "#80c8ff" : "#d0e4f7",
-              border:     `2px solid ${sel ? "#4db8ff" : tod ? "#2a5a8c" : "transparent"}`,
+              background: sel ? "#E7EEF5" : tod ? "#EDF2F7" : "transparent",
+              color:      sel ? "#2F5D8A" : tod ? "#5B85AC" : "#1C2B3A",
+              border:     `2px solid ${sel ? "#2F5D8A" : tod ? "#6E8FAE" : "transparent"}`,
               fontWeight: sel || tod ? 700 : 400,
             }}>{d}</div>
           );
@@ -451,38 +451,38 @@ export default function App() {
 
     const css = [
       "* { margin:0; padding:0; box-sizing:border-box; }",
-      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1c2d3e; background:#fff; padding:40px 46px; }",
-      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1a3a5c; padding-bottom:20px; margin-bottom:28px; }",
-      ".company { font-size:24px; font-weight:800; color:#1a3a5c; letter-spacing:-0.5px; }",
-      ".tagline { font-size:12px; color:#6a8aaa; margin-top:3px; }",
+      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1C2B3A; background:#fff; padding:40px 46px; }",
+      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #DCE3EA; padding-bottom:20px; margin-bottom:28px; }",
+      ".company { font-size:24px; font-weight:800; color:#1C2B3A; letter-spacing:-0.5px; }",
+      ".tagline { font-size:12px; color:#8FA0AF; margin-top:3px; }",
       ".hdr-right { text-align:right; }",
-      ".rpt-title { font-size:17px; font-weight:700; color:#2a4a6c; }",
-      ".meta { margin-top:6px; font-size:11px; color:#6a8aaa; line-height:1.8; }",
-      ".meta strong { color:#1c2d3e; }",
+      ".rpt-title { font-size:17px; font-weight:700; color:#2F5D8A; }",
+      ".meta { margin-top:6px; font-size:11px; color:#8FA0AF; line-height:1.8; }",
+      ".meta strong { color:#1C2B3A; }",
       ".broker-block { margin-bottom:26px; break-inside:avoid; }",
-      ".broker-header { background:#1a3a5c; color:#fff; font-size:12px; font-weight:600; padding:8px 14px; border-radius:4px 4px 0 0; text-align:center; line-height:1.5; }",
+      ".broker-header { background:#2F5D8A; color:#fff; font-size:12px; font-weight:600; padding:8px 14px; border-radius:4px 4px 0 0; text-align:center; line-height:1.5; }",
       ".broker-name { font-size:15px; font-weight:800; letter-spacing:0.3px; }",
       "table { width:100%; border-collapse:collapse; }",
-      "thead tr { background:#f0f4f8; }",
-      "th { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:#5a7a9a; padding:7px 8px; text-align:center; border-bottom:2px solid #d8e4f0; line-height:1.3; }",
+      "thead tr { background:#F1F4F7; }",
+      "th { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:#8FA0AF; padding:7px 8px; text-align:center; border-bottom:2px solid #DDE6EE; line-height:1.3; }",
       "th:nth-child(2) { text-align:left; }",
-      "td { padding:7px 8px; border-bottom:1px solid #e8eff6; vertical-align:top; font-size:11.5px; }",
+      "td { padding:7px 8px; border-bottom:1px solid #EEF2F6; vertical-align:top; font-size:11.5px; }",
       "tr:last-child td { border-bottom:none; }",
-      "tr:nth-child(even) td { background:#f9fbfd; }",
-      "td.time { white-space:nowrap; font-weight:600; color:#2a4a6c; }",
+      "tr:nth-child(even) td { background:#FAFBFC; }",
+      "td.time { white-space:nowrap; font-weight:600; color:#2F5D8A; }",
       "td.name { font-weight:600; }",
       ".client-name { font-weight:700; }",
-      ".subject { color:#6a8aaa; font-style:italic; font-weight:400; font-size:11px; margin-top:1px; }",
+      ".subject { color:#8FA0AF; font-style:italic; font-weight:400; font-size:11px; margin-top:1px; }",
       "td.center { text-align:center; }",
-      "td.money { font-weight:600; color:#2a6c3a; }",
-      "td.notes-col { color:#5a7a9a; font-style:italic; font-size:11px; }",
-      ".empty-row { text-align:center; color:#9aacbc; font-style:italic; padding:14px; }",
-      ".summary { display:flex; gap:36px; align-items:flex-start; background:#f0f4f8; border:1px solid #d0dde8; border-radius:6px; padding:18px 26px; margin-top:28px; break-inside:avoid; }",
-      ".sum-block h3 { font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#6a8aaa; margin-bottom:8px; }",
-      ".big-num { font-size:34px; font-weight:800; color:#1a3a5c; line-height:1; }",
-      ".big-label { font-size:11px; color:#6a8aaa; margin-top:4px; }",
-      ".divider { width:1px; background:#d0dde8; align-self:stretch; }",
-      ".footer { margin-top:32px; padding-top:12px; border-top:1px solid #d0dde8; display:flex; justify-content:space-between; font-size:10.5px; color:#9aacbc; }",
+      "td.money { font-weight:600; color:#3F8361; }",
+      "td.notes-col { color:#8FA0AF; font-style:italic; font-size:11px; }",
+      ".empty-row { text-align:center; color:#A9B4BF; font-style:italic; padding:14px; }",
+      ".summary { display:flex; gap:36px; align-items:flex-start; background:#F1F4F7; border:1px solid #DCE3EA; border-radius:6px; padding:18px 26px; margin-top:28px; break-inside:avoid; }",
+      ".sum-block h3 { font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#8FA0AF; margin-bottom:8px; }",
+      ".big-num { font-size:34px; font-weight:800; color:#1C2B3A; line-height:1; }",
+      ".big-label { font-size:11px; color:#8FA0AF; margin-top:4px; }",
+      ".divider { width:1px; background:#DCE3EA; align-self:stretch; }",
+      ".footer { margin-top:32px; padding-top:12px; border-top:1px solid #DCE3EA; display:flex; justify-content:space-between; font-size:10.5px; color:#A9B4BF; }",
       "@media print { body { padding:18px 24px; } .broker-block { break-inside:avoid; } }",
     ].join(" ");
 
@@ -559,62 +559,62 @@ export default function App() {
   }
 
   const S = {
-    root:         { minHeight: "100vh", background: "#07131f", color: "#d0e4f7", fontFamily: "'Segoe UI',sans-serif", fontSize: 15 },
-    header:       { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px", background: "#0a1e30", borderBottom: "2px solid #1a3a5c", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 10 },
+    root:         { minHeight: "100vh", background: "#F6F7FA", color: "#1C2B3A", fontFamily: "'Inter','Segoe UI',sans-serif", fontSize: 15 },
+    header:       { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 28px", background: "#FFFFFF", borderBottom: "1px solid #DCE3EA", boxShadow: "0 1px 2px rgba(28,43,58,0.04)", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 10 },
     headerLeft:   { display: "flex", alignItems: "center", gap: 14 },
-    logoText:     { fontWeight: 700, fontSize: 20, color: "#d0e4f7" },
-    logoSub:      { fontSize: 13, color: "#5a7a9a" },
-    nav:          { display: "flex", gap: 8, flexWrap: "wrap" },
-    navBtn:       { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 500 },
-    navActive:    { background: "#1a3a5c", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 700 },
-    iconBtn:      { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "11px 18px", cursor: "pointer", fontSize: 14 },
-    lockBtn:      { background: "none", border: "2px solid #3a2a0a", color: "#d0a040", borderRadius: 8, padding: "11px 18px", cursor: "pointer", fontSize: 14 },
-    saveBtn2:     { background: "#1a3a1a", border: "2px solid #4caf73", color: "#4caf73", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 14, fontWeight: 600 },
-    loadBtn:      { background: "#1a2a1a", border: "2px solid #4caf73", color: "#4caf73", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 14 },
-    saveMsgBar:   { background: "#0a2a1a", borderBottom: "1px solid #1a5a3a", padding: "10px 28px", color: "#4caf73", fontSize: 14, textAlign: "center" },
-    page:         { padding: "22px 28px", maxWidth: "100%", overflowX: "auto" },
+    logoText:     { fontFamily: "'Source Serif 4',Georgia,serif", fontWeight: 600, fontSize: 22, color: "#1C2B3A", letterSpacing: "0.2px" },
+    logoSub:      { fontSize: 12.5, color: "#8FA0AF", letterSpacing: "0.3px" },
+    nav:          { display: "flex", gap: 6, flexWrap: "wrap" },
+    navBtn:       { background: "none", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 8, padding: "10px 20px", cursor: "pointer", fontSize: 14, fontWeight: 500 },
+    navActive:    { background: "#E7EEF5", border: "1px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "10px 20px", cursor: "pointer", fontSize: 14, fontWeight: 700 },
+    iconBtn:      { background: "none", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontSize: 13 },
+    lockBtn:      { background: "none", border: "1px solid #E3C9A0", color: "#B8792E", borderRadius: 8, padding: "10px 16px", cursor: "pointer", fontSize: 13 },
+    saveBtn2:     { background: "#E8F1EC", border: "1px solid #3F8361", color: "#3F8361", borderRadius: 8, padding: "10px 18px", cursor: "pointer", fontSize: 13, fontWeight: 600 },
+    loadBtn:      { background: "#E8F1EC", border: "1px solid #3F8361", color: "#3F8361", borderRadius: 8, padding: "10px 18px", cursor: "pointer", fontSize: 13 },
+    saveMsgBar:   { background: "#E8F1EC", borderBottom: "1px solid #E3F0E8", padding: "10px 28px", color: "#3F8361", fontSize: 14, textAlign: "center" },
+    page:         { padding: "24px 28px", maxWidth: "100%", overflowX: "auto" },
     weekNav:      { display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" },
-    weekBtn:      { background: "#0f2030", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "10px 20px", cursor: "pointer", fontSize: 15 },
-    weekLabel:    { fontWeight: 700, fontSize: 18, color: "#d0e4f7" },
+    weekBtn:      { background: "#FFFFFF", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 8, padding: "10px 18px", cursor: "pointer", fontSize: 14 },
+    weekLabel:    { fontFamily: "'Source Serif 4',Georgia,serif", fontWeight: 600, fontSize: 19, color: "#1C2B3A" },
     grid:         { borderCollapse: "collapse", minWidth: 900, width: "100%", tableLayout: "fixed" },
-    timeHeader:   { width: 68, background: "#0a1e30", padding: "8px 10px", color: "#5a7a9a", fontWeight: 400, fontSize: 12, textAlign: "right", borderBottom: "1px solid #1a3a5c" },
-    dayHeader:    { padding: "10px 4px", textAlign: "center", fontSize: 14, color: "#d0e4f7", borderBottom: "1px solid #1a3a5c", borderLeft: "1px solid #1a3a5c" },
+    timeHeader:   { width: 68, background: "#FFFFFF", padding: "8px 10px", color: "#8FA0AF", fontWeight: 400, fontSize: 12, textAlign: "right", borderBottom: "1px solid #DCE3EA" },
+    dayHeader:    { padding: "10px 4px", textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#1C2B3A", borderBottom: "1px solid #DCE3EA", borderLeft: "1px solid #DCE3EA" },
     brokerRow:    { display: "flex", width: "100%" },
-    brokerHeader: { flex: 1, padding: "4px 2px", fontSize: 11, color: "#5a8aaa", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c1f30" },
-    staffHeader:  { flex: 1, padding: "4px 2px", fontSize: 11, color: "#5aaa8a", textAlign: "center", borderRight: "1px solid #0d2035", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#0c2018" },
-    trFull:       { borderTop: "1px solid #1a3050" },
-    trHalf:       { borderTop: "1px dotted #0f2030" },
-    timeCell:     { padding: "0 8px", textAlign: "right", fontSize: 11, color: "#5a7a9a", verticalAlign: "top", whiteSpace: "nowrap", width: 68, height: 34 },
-    emptyCell:    { flex: 1, height: 34, borderRight: "1px solid #0d2035" },
-    blockedCell:  { flex: 1, height: 34, background: "#0f1e2a", borderRight: "1px solid #0d2035" },
-    apptCell:     { flex: 1, padding: "3px 4px", overflow: "hidden", borderRight: "1px solid #0d2035", borderLeft: "3px solid #4db8ff" },
-    apptName:     { fontWeight: 700, fontSize: 11, color: "#cce8ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-    apptDur:      { fontSize: 10, color: "#4db8ff" },
-    apptNotes:    { fontSize: 10, color: "#8ba8c0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    brokerHeader: { flex: 1, padding: "5px 2px", fontSize: 10.5, fontWeight: 600, color: "#8FA0AF", textAlign: "center", borderRight: "1px solid #E3E8EE", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#F1F4F7", textTransform: "uppercase", letterSpacing: "0.4px" },
+    staffHeader:  { flex: 1, padding: "5px 2px", fontSize: 10.5, fontWeight: 600, color: "#4F8F68", textAlign: "center", borderRight: "1px solid #E3E8EE", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", background: "#EEF4EF", textTransform: "uppercase", letterSpacing: "0.4px" },
+    trFull:       { borderTop: "1px solid #E3E8EE" },
+    trHalf:       { borderTop: "1px dotted #EEF1F5" },
+    timeCell:     { padding: "0 8px", textAlign: "right", fontSize: 11, color: "#8FA0AF", verticalAlign: "top", whiteSpace: "nowrap", width: 68, height: 34 },
+    emptyCell:    { flex: 1, height: 34, borderRight: "1px solid #E3E8EE" },
+    blockedCell:  { flex: 1, height: 34, background: "#F1F4F7", borderRight: "1px solid #E3E8EE" },
+    apptCell:     { flex: 1, margin: "1px 2px", padding: "3px 5px", overflow: "hidden", background: "#FFFFFF", borderRadius: 5, boxShadow: "0 1px 2px rgba(28,43,58,0.08)", borderLeft: "3px solid #2F5D8A" },
+    apptName:     { fontWeight: 700, fontSize: 11, color: "#1C2B3A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    apptDur:      { fontSize: 10, color: "#2F5D8A" },
+    apptNotes:    { fontSize: 10, color: "#7C8DA0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
     toolBar:      { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 },
-    sectionTitle: { margin: 0, fontSize: 22, color: "#d0e4f7", fontWeight: 700 },
-    searchInput:  { background: "#0a1e30", border: "2px solid #1a3a5c", borderRadius: 8, color: "#d0e4f7", padding: "10px 16px", fontSize: 15 },
-    addBtn:       { background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 15, fontWeight: 700 },
-    reportBtn:    { background: "#1a2a1a", border: "2px solid #4caf73", color: "#4caf73", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 15, fontWeight: 600 },
+    sectionTitle: { margin: 0, fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 23, color: "#1C2B3A", fontWeight: 600 },
+    searchInput:  { background: "#FFFFFF", border: "1px solid #DCE3EA", borderRadius: 8, color: "#1C2B3A", padding: "10px 16px", fontSize: 14 },
+    addBtn:       { background: "#2F5D8A", border: "1px solid #2F5D8A", color: "#FFFFFF", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 14, fontWeight: 700 },
+    reportBtn:    { background: "#E8F1EC", border: "1px solid #3F8361", color: "#3F8361", borderRadius: 8, padding: "11px 20px", cursor: "pointer", fontSize: 14, fontWeight: 600 },
     clientTable:  { width: "100%", borderCollapse: "collapse" },
-    clientTh:     { background: "#0a1e30", padding: "14px 16px", textAlign: "left", color: "#c0d8f0", fontSize: 15, fontWeight: 800, borderBottom: "2px solid #1a3a5c", letterSpacing: "0.4px" },
-    clientTd:     { padding: "13px 16px", borderBottom: "1px solid #0f2030", fontSize: 14 },
-    clientRow:    { background: "#07131f" },
-    overdueRow:   { background: "#150c0c" },
+    clientTh:     { background: "#F1F4F7", padding: "13px 16px", textAlign: "left", color: "#6B7C8C", fontSize: 12, fontWeight: 700, borderBottom: "1px solid #DCE3EA", letterSpacing: "0.5px", textTransform: "uppercase" },
+    clientTd:     { padding: "13px 16px", borderBottom: "1px solid #EEF1F5", fontSize: 14 },
+    clientRow:    { background: "#FFFFFF" },
+    overdueRow:   { background: "#FBEEEC" },
     badge:        { padding: "5px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600 },
-    empty:        { textAlign: "center", padding: 64, color: "#5a7a9a", fontSize: 17 },
-    overlay:      { position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 },
-    modalBox:     { background: "#0d1e2e", border: "2px solid #1a3a5c", borderRadius: 14, padding: 32, width: 500, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto" },
-    modalTitle:   { margin: "0 0 6px", color: "#d0e4f7", fontSize: 20, fontWeight: 700 },
-    label:        { display: "block", color: "#8b9db5", fontSize: 14, marginBottom: 6, marginTop: 18, fontWeight: 600 },
-    input:        { width: "100%", background: "#07131f", border: "2px solid #1a3a5c", borderRadius: 8, color: "#d0e4f7", padding: "11px 14px", fontSize: 15, boxSizing: "border-box" },
+    empty:        { textAlign: "center", padding: 64, color: "#8FA0AF", fontSize: 17 },
+    overlay:      { position: "fixed", inset: 0, background: "rgba(28,43,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 },
+    modalBox:     { background: "#FFFFFF", border: "1px solid #DCE3EA", borderRadius: 14, padding: 32, width: 500, maxWidth: "92vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(28,43,58,0.16)" },
+    modalTitle:   { margin: "0 0 6px", fontFamily: "'Source Serif 4',Georgia,serif", color: "#1C2B3A", fontSize: 21, fontWeight: 600 },
+    label:        { display: "block", color: "#6B7C8C", fontSize: 13, marginBottom: 6, marginTop: 18, fontWeight: 600 },
+    input:        { width: "100%", background: "#F6F7FA", border: "1px solid #DCE3EA", borderRadius: 8, color: "#1C2B3A", padding: "10px 14px", fontSize: 14, boxSizing: "border-box" },
     modalActions: { display: "flex", gap: 10, marginTop: 28, justifyContent: "flex-end" },
-    saveBtn:      { background: "#1a4a6b", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "12px 24px", cursor: "pointer", fontWeight: 700, fontSize: 15 },
-    cancelBtn:    { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "12px 22px", cursor: "pointer", fontSize: 15 },
-    deleteBtn:    { background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "12px 18px", cursor: "pointer", marginRight: "auto", fontSize: 15 },
-    stbBtn:       { background: "none", border: "2px solid #1a3a5c", color: "#8b9db5", borderRadius: 8, padding: "9px 18px", cursor: "pointer", fontSize: 14 },
-    stbActive:    { background: "#1a3a5c", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "9px 18px", cursor: "pointer", fontSize: 14, fontWeight: 700 },
-    crmCard:      { display: "flex", alignItems: "center", gap: 14, background: "#0a1e30", borderRadius: 10, padding: "14px 18px", marginBottom: 6 },
+    saveBtn:      { background: "#2F5D8A", border: "1px solid #2F5D8A", color: "#FFFFFF", borderRadius: 8, padding: "12px 24px", cursor: "pointer", fontWeight: 700, fontSize: 14 },
+    cancelBtn:    { background: "none", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 8, padding: "12px 22px", cursor: "pointer", fontSize: 14 },
+    deleteBtn:    { background: "#F5E7E4", border: "1px solid #B0463B", color: "#B0463B", borderRadius: 8, padding: "12px 18px", cursor: "pointer", marginRight: "auto", fontSize: 14 },
+    stbBtn:       { background: "none", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 8, padding: "9px 18px", cursor: "pointer", fontSize: 13 },
+    stbActive:    { background: "#E7EEF5", border: "1px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "9px 18px", cursor: "pointer", fontSize: 13, fontWeight: 700 },
+    crmCard:      { display: "flex", alignItems: "center", gap: 14, background: "#F6F7FA", borderRadius: 10, padding: "14px 18px", marginBottom: 6 },
   };
 
   const filteredClients = clients
@@ -629,8 +629,8 @@ export default function App() {
     <div style={S.root}>
       <header style={S.header}>
         <div style={S.headerLeft}>
-          <span style={{ fontSize: 22 }}>📋</span>
-          <div><div style={S.logoText}>Cinergy Financial Scheduler</div><div style={S.logoSub}>Financial Advisory</div></div>
+          <div style={{ width: 4, height: 34, background: "#2F5D8A", borderRadius: 2 }} />
+          <div><div style={S.logoText}>Cinergy Financial</div><div style={S.logoSub}>Scheduler — Financial Advisory Services</div></div>
         </div>
         <nav style={S.nav}>
           {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`]].map(([id, label]) => (
@@ -638,7 +638,7 @@ export default function App() {
           ))}
         </nav>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {loading && <span style={{ color: "#5a7a9a", fontSize: 14 }}>⏳ Connecting…</span>}
+          {loading && <span style={{ color: "#8FA0AF", fontSize: 14 }}>⏳ Connecting…</span>}
           <button style={S.iconBtn} onClick={() => setSOp(true)}>⚙️ Settings</button>
           <button style={S.lockBtn} onClick={() => setAuthed(false)}>🔒 Lock</button>
         </div>
@@ -669,7 +669,7 @@ export default function App() {
                 <tr>
                   <th style={S.timeHeader}>Time</th>
                   {weekDays.map(({ name, date }) => (
-                    <th key={name} style={{ ...S.dayHeader, background: dateKey(date) === dateKey(TODAY) ? "#1a3a5c" : "#0f2030" }}>
+                    <th key={name} style={{ ...S.dayHeader, background: dateKey(date) === dateKey(TODAY) ? "#DCE3EA" : "#EEF1F5" }}>
                       <div style={{ fontWeight: 700 }}>{name}</div>
                       <div style={{ fontSize: 11, opacity: 0.7 }}>{fmt(date)}</div>
                     </th>
@@ -698,17 +698,17 @@ export default function App() {
                             const isStaff = pi >= brokers.length;
                             const appt = apptAt(person, date, hour);
                             const blocked = !appt && isBlockedByPrev(person, date, hour);
-                            if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#0a1a12" : S.blockedCell.background }} />;
+                            if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#EAF3EE" : S.blockedCell.background }} />;
                             if (appt) {
                               const rows = appt.duration / 0.5;
                               const hasNotes = (notes[appt.clientName] || []).length > 0;
                               const bg = isStaff
-                                ? (appt.duration === 2 ? "#1a4a30" : appt.duration === 1.5 ? "#163d28" : "#122f20")
-                                : (appt.duration === 2 ? "#1a4a6b" : appt.duration === 1.5 ? "#163d5a" : "#122f48");
+                                ? (appt.duration === 2 ? "#E3F0E8" : appt.duration === 1.5 ? "#E3F0E8" : "#E8F1EC")
+                                : (appt.duration === 2 ? "#E7EEF5" : appt.duration === 1.5 ? "#E3EDF5" : "#EDF2F7");
                               return (
-                                <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, background: bg, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#4caf73" : "#4db8ff"}` }} onClick={() => openEditAppt(appt)}>
-                                  <div style={{ ...S.apptName, color: isStaff ? "#ccf0e0" : S.apptName.color }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
-                                  {appt.duration !== 1 && <div style={{ ...S.apptDur, color: isStaff ? "#4caf73" : S.apptDur.color }}>{appt.duration}h</div>}
+                                <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, background: bg, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#3F8361" : "#2F5D8A"}` }} onClick={() => openEditAppt(appt)}>
+                                  <div style={{ ...S.apptName, color: isStaff ? "#1F4A34" : S.apptName.color }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                  {appt.duration !== 1 && <div style={{ ...S.apptDur, color: isStaff ? "#3F8361" : S.apptDur.color }}>{appt.duration}h</div>}
                                   {appt.notes && <div style={S.apptNotes}>{appt.notes}</div>}
                                 </div>
                               );
@@ -738,9 +738,9 @@ export default function App() {
           </div>
 
           {selectedClients.size > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#0f2540", border: "1px solid #2a5a9c", borderRadius: 8, padding: "10px 14px", marginBottom: 12, flexWrap: "wrap" }}>
-              <span style={{ color: "#4db8ff", fontWeight: 700, fontSize: 13, marginRight: 4 }}>{selectedClients.size} selected</span>
-              <select style={{ background: "#0a1e30", border: "1px solid #1a3a5c", color: "#d0e4f7", borderRadius: 6, padding: "5px 8px", fontSize: 12, cursor: "pointer" }}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#EDF2F7", border: "1px solid #2F5D8A", borderRadius: 8, padding: "10px 14px", marginBottom: 12, flexWrap: "wrap" }}>
+              <span style={{ color: "#2F5D8A", fontWeight: 700, fontSize: 13, marginRight: 4 }}>{selectedClients.size} selected</span>
+              <select style={{ background: "#FFFFFF", border: "1px solid #DCE3EA", color: "#1C2B3A", borderRadius: 6, padding: "5px 8px", fontSize: 12, cursor: "pointer" }}
                 defaultValue=""
                 onChange={e => { bulkAssign(e.target.value); e.target.value = ""; }}>
                 <option value="" disabled>Assign broker / staff…</option>
@@ -748,15 +748,15 @@ export default function App() {
                 <option value="Staff">Staff</option>
               </select>
               <button onClick={bulkClearAssignments}
-                style={{ background: "#1a2a1a", border: "1px solid #4a7a4a", color: "#8bd08b", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
+                style={{ background: "#E8F1EC", border: "1px solid #7FAE93", color: "#2F6E4C", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
                 Clear Assignments
               </button>
               <button onClick={bulkDelete}
-                style={{ background: "#3a1010", border: "1px solid #7a2020", color: "#ff6b6b", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
+                style={{ background: "#F5E7E4", border: "1px solid #B0463B", color: "#B0463B", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>
                 🗑 Delete Selected
               </button>
               <button onClick={() => setSelClients(new Set())}
-                style={{ background: "none", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginLeft: "auto" }}>
+                style={{ background: "none", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12, marginLeft: "auto" }}>
                 Deselect All
               </button>
             </div>
@@ -767,7 +767,7 @@ export default function App() {
               <tr>
                 <th style={{ ...S.clientTh, width: 36, textAlign: "center" }}>
                   <input type="checkbox" checked={filteredClients.length > 0 && selectedClients.size === filteredClients.length}
-                    onChange={toggleSelectAll} style={{ cursor: "pointer", accentColor: "#4db8ff" }} />
+                    onChange={toggleSelectAll} style={{ cursor: "pointer", accentColor: "#2F5D8A" }} />
                 </th>
                 <th style={{ ...S.clientTh, cursor: "pointer", userSelect: "none" }} onClick={() => setNameSort(s => s === "asc" ? "desc" : "asc")}>
                   Client {nameSort === "asc" ? "▲" : "▼"}
@@ -787,9 +787,9 @@ export default function App() {
                 const clientNoteCount = (notes[c.id] || []).length;
                 const isSelected = selectedClients.has(c.id);
                 return (
-                  <tr key={c.id} style={{ ...(overdue ? S.overdueRow : S.clientRow), ...(isSelected ? { background: "#0d2540", outline: "1px solid #2a5a9c" } : {}) }}>
+                  <tr key={c.id} style={{ ...(overdue ? S.overdueRow : S.clientRow), ...(isSelected ? { background: "#EDF2F7", outline: "1px solid #2F5D8A" } : {}) }}>
                     <td style={{ ...S.clientTd, textAlign: "center" }}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelectClient(c.id)} style={{ cursor: "pointer", accentColor: "#4db8ff" }} />
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelectClient(c.id)} style={{ cursor: "pointer", accentColor: "#2F5D8A" }} />
                     </td>
                     <td style={S.clientTd}><strong>{c.name}</strong></td>
                     <td style={S.clientTd}>{c.phone || "—"}</td>
@@ -799,14 +799,14 @@ export default function App() {
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
                         {allBrokers.length > 0
                           ? allBrokers.map((b, i) => (
-                            <span key={i} style={{ background: b.includes("Unassigned") ? "#2a1a0a" : "#0f2a1a", color: b.includes("Unassigned") ? "#ff9a3c" : "#4caf73", borderRadius: 8, padding: "1px 8px", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                            <span key={i} style={{ background: b.includes("Unassigned") ? "#F7EFE3" : "#E8F1EC", color: b.includes("Unassigned") ? "#B8792E" : "#3F8361", borderRadius: 8, padding: "1px 8px", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                               {b}
                               {manualBrokers.includes(b) && <span style={{ cursor: "pointer", fontSize: 10, opacity: 0.7 }} onClick={() => updateClientBrokers(c.id, (c.manualBrokers||[]).filter(x => x !== b))}>✕</span>}
                             </span>
                           ))
-                          : <span style={{ color: "#5a7a9a" }}>—</span>
+                          : <span style={{ color: "#8FA0AF" }}>—</span>
                         }
-                        <select style={{ background: "#0a1e30", border: "1px solid #1a3a5c", color: "#8b9db5", borderRadius: 6, padding: "2px 6px", fontSize: 11, cursor: "pointer" }} value=""
+                        <select style={{ background: "#FFFFFF", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 6, padding: "2px 6px", fontSize: 11, cursor: "pointer" }} value=""
                           onChange={e => { const val = e.target.value; if (!val) return; updateClientBrokers(c.id, [...new Set([...(c.manualBrokers||[]), val])]); }}>
                           <option value="">+ Add</option>
                           {brokers.filter(b => !manualBrokers.includes(b)).map(b => <option key={b} value={b}>{b}</option>)}
@@ -814,15 +814,15 @@ export default function App() {
                         </select>
                       </div>
                     </td>
-                    <td style={S.clientTd}>{st.last ? fmtFull(st.last) : <span style={{ color: "#5a7a9a" }}>Never</span>}</td>
-                    <td style={S.clientTd}>{st.next ? fmtFull(st.next) : <span style={{ color: "#ff9a3c" }}>None scheduled</span>}</td>
+                    <td style={S.clientTd}>{st.last ? fmtFull(st.last) : <span style={{ color: "#8FA0AF" }}>Never</span>}</td>
+                    <td style={S.clientTd}>{st.next ? fmtFull(st.next) : <span style={{ color: "#B8792E" }}>None scheduled</span>}</td>
                     <td style={S.clientTd}>
                       {(() => {
                         const autoStatus = overdue ? "overdue" : st.next ? "scheduled" : st.last ? "no_future" : "new";
                         const autoLabel = overdue ? "Auto: Overdue" : st.next ? "Auto: Scheduled" : st.last ? "Auto: No appt" : "Auto: New";
                         const manual = clientStatuses[c.id] || "";
                         const effectiveStatus = manual || autoStatus;
-                        const sc = { overdue: { bg: "#7a2020", col: "#ff6b6b" }, scheduled: { bg: "#1a4a2a", col: "#4caf73" }, active: { bg: "#1a3a1a", col: "#4caf73" }, vip: { bg: "#2a2808", col: "#e8c840" }, follow_up: { bg: "#0a2040", col: "#4db8ff" }, inactive: { bg: "#1a1a2a", col: "#9ba5b5" }, do_not_contact: { bg: "#2a0f0f", col: "#ff6b6b" }, no_future: { bg: "#1a2a3a", col: "#8b9db5" }, new: { bg: "#1a2a3a", col: "#8b9db5" } }[effectiveStatus] || { bg: "#1a2a3a", col: "#8b9db5" };
+                        const sc = { overdue: { bg: "#F5E7E4", col: "#B0463B" }, scheduled: { bg: "#E3F0E8", col: "#3F8361" }, active: { bg: "#E8F1EC", col: "#3F8361" }, vip: { bg: "#F7F0DC", col: "#A67C1E" }, follow_up: { bg: "#EDF2F8", col: "#2F5D8A" }, inactive: { bg: "#F0EEF5", col: "#9AA7B5" }, do_not_contact: { bg: "#F5E7E4", col: "#B0463B" }, no_future: { bg: "#EEF1F5", col: "#6B7C8C" }, new: { bg: "#EEF1F5", col: "#6B7C8C" } }[effectiveStatus] || { bg: "#EEF1F5", col: "#6B7C8C" };
                         return (
                           <select value={manual} onChange={e => setClientStatus(c.id, e.target.value)}
                             style={{ background: sc.bg, color: sc.col, border: `2px solid ${sc.col}66`, borderRadius: 8, cursor: "pointer", padding: "5px 10px", fontSize: 13, fontWeight: 600 }}>
@@ -841,15 +841,15 @@ export default function App() {
                     <td style={S.clientTd}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         <button onClick={() => { setNotesClientView("notes"); setNotesClient(c); }}
-                          style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `2px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                          style={{ background: clientNoteCount > 0 ? "#E8F1EC" : "#FFFFFF", border: `2px solid ${clientNoteCount > 0 ? "#3F8361" : "#DCE3EA"}`, color: clientNoteCount > 0 ? "#3F8361" : "#8FA0AF", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                           📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
                         </button>
                         <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: c.name, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
-                          style={{ background: "#1a3a5c", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                          style={{ background: "#DCE3EA", border: "2px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                           📅 Book Appt
                         </button>
                         <button onClick={() => deleteClient(c)}
-                          style={{ background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                          style={{ background: "#F5E7E4", border: "2px solid #B0463B", color: "#B0463B", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                           🗑 Delete
                         </button>
                       </div>
@@ -868,9 +868,9 @@ export default function App() {
           <div style={S.toolBar}>
             <h2 style={S.sectionTitle}>⚠️ Clients Needing Attention — No appointment in {overdueThreshold}+ days</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ color: "#8b9db5", fontSize: 13 }}>Threshold:</label>
+              <label style={{ color: "#6B7C8C", fontSize: 13 }}>Threshold:</label>
               <input type="number" style={{ ...S.searchInput, width: 70 }} value={overdueThreshold} onChange={e => setODT(Number(e.target.value))} />
-              <span style={{ color: "#8b9db5", fontSize: 13 }}>days</span>
+              <span style={{ color: "#6B7C8C", fontSize: 13 }}>days</span>
             </div>
           </div>
           {overdueClients.length === 0
@@ -888,16 +888,16 @@ export default function App() {
                         <td style={S.clientTd}>{c.phone || "—"}</td>
                         <td style={S.clientTd}>{c.email || "—"}</td>
                         <td style={S.clientTd}><ImportedFromBadge src={c.importedFrom} /></td>
-                        <td style={S.clientTd}>{st.last ? fmtFull(st.last) : <span style={{ color: "#5a7a9a" }}>Never</span>}</td>
-                        <td style={{ ...S.clientTd, color: "#ff6b6b", fontWeight: 700 }}>{ds === Infinity ? "Never" : `${ds} days`}</td>
+                        <td style={S.clientTd}>{st.last ? fmtFull(st.last) : <span style={{ color: "#8FA0AF" }}>Never</span>}</td>
+                        <td style={{ ...S.clientTd, color: "#B0463B", fontWeight: 700 }}>{ds === Infinity ? "Never" : `${ds} days`}</td>
                         <td style={S.clientTd}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             <button onClick={() => { setNotesClientView("notes"); setNotesClient(c); }}
-                              style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `2px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              style={{ background: clientNoteCount > 0 ? "#E8F1EC" : "#FFFFFF", border: `2px solid ${clientNoteCount > 0 ? "#3F8361" : "#DCE3EA"}`, color: clientNoteCount > 0 ? "#3F8361" : "#8FA0AF", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
                             </button>
                             <button onClick={() => deleteClient(c)}
-                              style={{ background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              style={{ background: "#F5E7E4", border: "2px solid #B0463B", color: "#B0463B", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               🗑 Delete
                             </button>
                           </div>
@@ -931,15 +931,15 @@ export default function App() {
                         <td style={S.clientTd}>{hourLabel(a.startHour)}</td>
                         <td style={S.clientTd}><strong>{a.clientName}</strong></td>
                         <td style={S.clientTd}>{a.broker}</td>
-                        <td style={{ ...S.clientTd, color: "#ff9a3c" }}>{a.cancelReason || "—"}</td>
+                        <td style={{ ...S.clientTd, color: "#B8792E" }}>{a.cancelReason || "—"}</td>
                         <td style={S.clientTd}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             <button onClick={() => { setForm({ broker: a.broker, date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: a.clientName, notes: a.notes || "", subject: a.subject || "", location: a.location || "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }}
-                              style={{ background: "#0a1e30", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              style={{ background: "#FFFFFF", border: "2px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               🔁 Reschedule
                             </button>
                             <button onClick={() => deleteAppt(a.id)}
-                              style={{ background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              style={{ background: "#F5E7E4", border: "2px solid #B0463B", color: "#B0463B", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               🗑 Remove
                             </button>
                           </div>
@@ -959,7 +959,7 @@ export default function App() {
               <h3 style={{ ...S.modalTitle, margin: 0 }}>⚙️ Settings</h3>
               <button style={S.cancelBtn} onClick={() => setSOp(false)}>✕ Close</button>
             </div>
-            <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #1a3a5c", paddingBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #DCE3EA", paddingBottom: 12, flexWrap: "wrap" }}>
               {[["brokers","👥 Brokers"],["redtail","🔴 Redtail"],["csv","📄 CSV"]].map(([id, label]) => (
                 <button key={id} style={settingsTab === id ? S.stbActive : S.stbBtn} onClick={() => setSTB(id)}>{label}</button>
               ))}
@@ -974,21 +974,21 @@ export default function App() {
             )}
             {settingsTab === "redtail" && (
               <>
-                <div style={S.crmCard}><span style={{ fontSize: 24 }}>🔴</span><div><div style={{ fontWeight: 700, color: "#d0e4f7" }}>Redtail CRM</div></div></div>
+                <div style={S.crmCard}><span style={{ fontSize: 24 }}>🔴</span><div><div style={{ fontWeight: 700, color: "#1C2B3A" }}>Redtail CRM</div></div></div>
                 <label style={S.label}>Username</label>
                 <input style={S.input} value={creds.redtailUser} onChange={e => setCreds(c => ({ ...c, redtailUser: e.target.value }))} />
                 <label style={S.label}>API Key</label>
                 <input style={S.input} type="password" value={creds.redtailKey} onChange={e => setCreds(c => ({ ...c, redtailKey: e.target.value }))} />
                 <button style={{ ...S.saveBtn, marginTop: 14 }} onClick={syncRedtail}>🔄 Sync Redtail</button>
-                {syncMsg.redtail && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, background: syncStatus.redtail === "ok" ? "#0f2a0f" : "#2a0f0f", color: syncStatus.redtail === "ok" ? "#4caf73" : "#ff6b6b" }}>{syncMsg.redtail}</div>}
+                {syncMsg.redtail && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, background: syncStatus.redtail === "ok" ? "#E8F1EC" : "#F5E7E4", color: syncStatus.redtail === "ok" ? "#3F8361" : "#B0463B" }}>{syncMsg.redtail}</div>}
               </>
             )}
             {settingsTab === "csv" && (
               <>
-                <div style={S.crmCard}><span style={{ fontSize: 24 }}>📄</span><div><div style={{ fontWeight: 700, color: "#d0e4f7" }}>CSV Import</div></div></div>
-                <div style={{ background: "#0a1e30", border: "1px dashed #1a3a5c", borderRadius: 8, padding: 24, textAlign: "center", marginTop: 14 }}>
+                <div style={S.crmCard}><span style={{ fontSize: 24 }}>📄</span><div><div style={{ fontWeight: 700, color: "#1C2B3A" }}>CSV Import</div></div></div>
+                <div style={{ background: "#FFFFFF", border: "1px dashed #DCE3EA", borderRadius: 8, padding: 24, textAlign: "center", marginTop: 14 }}>
                   <div style={{ fontSize: 30, marginBottom: 8 }}>⬆️</div>
-                  <input ref={csvRef} type="file" accept=".csv" onChange={handleCSV} style={{ color: "#8b9db5", fontSize: 12 }} />
+                  <input ref={csvRef} type="file" accept=".csv" onChange={handleCSV} style={{ color: "#6B7C8C", fontSize: 12 }} />
                 </div>
               </>
             )}
@@ -1051,8 +1051,8 @@ export default function App() {
             <label style={S.label}>Appointment Notes</label>
             <input style={S.input} value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional…" />
 
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #1a3a5c" }}>
-              <div style={{ color: "#4db8ff", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💰 Report Fields</div>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #DCE3EA" }}>
+              <div style={{ color: "#2F5D8A", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💰 Report Fields</div>
               <label style={S.label}>Date of Last Acct. Summary</label>
               <input type="date" style={S.input} value={form.dateLastAcctSummary || ""} onChange={e => setForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
               <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
@@ -1072,12 +1072,12 @@ export default function App() {
                 <>
                   <button style={S.deleteBtn} onClick={() => deleteAppt(form.id)}>🗑 Delete</button>
                   {form.status !== "cancelled" && (
-                    <button style={{ ...S.cancelBtn, borderColor: "#ff9a3c", color: "#ff9a3c" }}
+                    <button style={{ ...S.cancelBtn, borderColor: "#B8792E", color: "#B8792E" }}
                       onClick={() => { const reason = window.prompt("Reason for cancelling (optional):") || ""; cancelAppt(form.id, reason); }}>
                       ⚠ Cancel Meeting
                     </button>
                   )}
-                  <button style={{ ...S.cancelBtn, borderColor: "#4caf73", color: "#4caf73" }}
+                  <button style={{ ...S.cancelBtn, borderColor: "#3F8361", color: "#3F8361" }}
                     onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("notes"); setNotesClient(c); } }}>
                     📝 Meeting Notes
                   </button>

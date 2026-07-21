@@ -1,10 +1,10 @@
 import React from 'react';
 
 const BADGE_MAP = {
-  redtail:   ["#1a3a6b", "#4db8ff", "Redtail"],
-  pipedrive: ["#2a1a4a", "#c084fc", "Pipedrive"],
-  csv:       ["#1a3a1a", "#4caf73", "CSV"],
-  manual:    ["#1a2a3a", "#8b9db5", "Manual"],
+  redtail:   ["#E7EEF5", "#2F5D8A", "Redtail"],
+  pipedrive: ["#F1ECFA", "#7C3AED", "Pipedrive"],
+  csv:       ["#E8F1EC", "#3F8361", "CSV"],
+  manual:    ["#EEF1F5", "#6B7C8C", "Manual"],
 };
 
 export default function ImportedFromBadge({ src }) {
