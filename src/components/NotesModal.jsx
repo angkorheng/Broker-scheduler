@@ -22,10 +22,18 @@ function fmtDateTime() {
   return new Date().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export default function NotesModal({ client, brokers, notes, appointments, onClose, onSave }) {
-  const [view, setView] = useState("notes"); // notes | history | cancelled
+export default function NotesModal({ client, brokers, notes, appointments, onClose, onSave, onSaveClient }) {
+  const [view, setView] = useState("notes"); // notes | history | cancelled | financial
   const clientNotes = (notes[client.id] || []).slice().reverse();
   const [form, setForm] = useState({ broker: brokers[0] || "", note: "", followUp: "", nextSteps: "" });
+  const [finForm, setFinForm] = useState({
+    dateLastAcctSummary: client.dateLastAcctSummary || "",
+    rmd70Half: client.rmd70Half || false,
+    availableDpps: client.availableDpps ?? "",
+    availableIfs: client.availableIfs ?? "",
+    availableNotes: client.availableNotes || "",
+  });
+  const [finSaved, setFinSaved] = useState(false);
 
   const clientAppts = appointments.filter(a =>
     a.clientId === client.id || (a.clientName || "").toLowerCase() === client.name.toLowerCase()
@@ -65,6 +73,7 @@ export default function NotesModal({ client, brokers, notes, appointments, onClo
           <button style={view === "notes" ? S.tabBtnActive : S.tabBtn} onClick={() => setView("notes")}>📝 Notes ({clientNotes.length})</button>
           <button style={view === "history" ? S.tabBtnActive : S.tabBtn} onClick={() => setView("history")}>🗓 Past Meetings ({pastMeetings.length})</button>
           <button style={view === "cancelled" ? S.tabBtnActive : S.tabBtn} onClick={() => setView("cancelled")}>⚠ Cancelled ({cancelledMeetings.length})</button>
+          <button style={view === "financial" ? S.tabBtnActive : S.tabBtn} onClick={() => setView("financial")}>💰 Financial Info</button>
         </div>
 
         {view === "notes" && (
@@ -141,6 +150,38 @@ export default function NotesModal({ client, brokers, notes, appointments, onClo
                 <span style={{ background: "#2a0f0f", color: "#ff6b6b", borderRadius: 8, padding: "2px 10px", fontWeight: 600, fontSize: 11 }}>Cancelled</span>
               </div>
             ))
+        )}
+        {view === "financial" && (
+          <div style={{ background: "#071828", border: "1px solid #1a3a5c", borderRadius: 10, padding: 16 }}>
+            <div style={{ color: "#4db8ff", fontWeight: 700, fontSize: 12, marginBottom: 10 }}>Report Fields — shown on the Daily Appointment Confirmation</div>
+            <label style={S.label}>Date of Last Acct. Summary</label>
+            <input type="date" style={S.input} value={finForm.dateLastAcctSummary} onChange={e => setFinForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
+            <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={finForm.rmd70Half} onChange={e => setFinForm(f => ({ ...f, rmd70Half: e.target.checked }))} />
+              RMD 70½ applies
+            </label>
+            <label style={S.label}>Available for DPPs ($)</label>
+            <input type="number" style={S.input} value={finForm.availableDpps} onChange={e => setFinForm(f => ({ ...f, availableDpps: e.target.value }))} placeholder="e.g. 50000" />
+            <label style={S.label}>Available for IFs ($)</label>
+            <input type="number" style={S.input} value={finForm.availableIfs} onChange={e => setFinForm(f => ({ ...f, availableIfs: e.target.value }))} placeholder="e.g. 25000" />
+            <label style={S.label}>Available for NOTES</label>
+            <textarea style={S.ta} value={finForm.availableNotes} onChange={e => setFinForm(f => ({ ...f, availableNotes: e.target.value }))} placeholder="Any additional notes for the report…" />
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10 }}>
+              {finSaved && <span style={{ color: "#4caf73", fontSize: 12 }}>✓ Saved</span>}
+              <button style={S.saveBtn} onClick={() => {
+                onSaveClient({
+                  ...client,
+                  dateLastAcctSummary: finForm.dateLastAcctSummary || null,
+                  rmd70Half: finForm.rmd70Half,
+                  availableDpps: finForm.availableDpps === "" ? null : Number(finForm.availableDpps),
+                  availableIfs: finForm.availableIfs === "" ? null : Number(finForm.availableIfs),
+                  availableNotes: finForm.availableNotes,
+                });
+                setFinSaved(true);
+                setTimeout(() => setFinSaved(false), 2000);
+              }}>Save Financial Info</button>
+            </div>
+          </div>
         )}
       </div>
     </div>

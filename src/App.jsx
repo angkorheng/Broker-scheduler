@@ -1059,7 +1059,12 @@ export default function App() {
       {notesClient && (
         <NotesModal client={notesClient} brokers={brokers} notes={notes} appointments={appointments}
           onClose={() => setNotesClient(null)}
-          onSave={(clientId, entry) => addNote(clientId, entry)} />
+          onSave={(clientId, entry) => addNote(clientId, entry)}
+          onSaveClient={(updatedClient) => {
+            setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+            setNotesClient(updatedClient);
+            upsertClient(updatedClient);
+          }} />
       )}
     </div>
   );
