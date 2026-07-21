@@ -122,6 +122,11 @@ export default function App() {
   const [reportDate, setReportDate] = useState(dateKey(TODAY));
   const [scheduleView, setScheduleView] = useState("day"); // day | week
   const [selectedDay, setSelectedDay] = useState(TODAY);
+  const [pastSearch, setPastSearch] = useState("");
+  const [pastBroker, setPastBroker] = useState("all");
+  const [pastType, setPastType] = useState("all"); // all | client | internal
+  const [pastFrom, setPastFrom] = useState("");
+  const [pastTo, setPastTo] = useState("");
   const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
   const loadedRef = useRef(false);
@@ -633,7 +638,7 @@ export default function App() {
           <div><div style={S.logoText}>Cinergy Financial</div><div style={S.logoSub}>Scheduler — Financial Advisory Services</div></div>
         </div>
         <nav style={S.nav}>
-          {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`]].map(([id, label]) => (
+          {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"]].map(([id, label]) => (
             <button key={id} style={tab === id ? S.navActive : S.navBtn} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
@@ -1024,6 +1029,74 @@ export default function App() {
                               🗑 Remove
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>;
+          })()}
+        </div>
+      )}
+
+      {tab === "past" && (
+        <div style={S.page}>
+          <div style={S.toolBar}>
+            <h2 style={S.sectionTitle}>🗓 Past Meetings</h2>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18, alignItems: "center" }}>
+            <input style={{ ...S.searchInput, minWidth: 220, flex: 1 }} placeholder="Search by client or meeting title…" value={pastSearch} onChange={e => setPastSearch(e.target.value)} />
+            <select style={S.searchInput} value={pastBroker} onChange={e => setPastBroker(e.target.value)}>
+              <option value="all">All Brokers</option>
+              {[...brokers, "Staff"].map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select style={S.searchInput} value={pastType} onChange={e => setPastType(e.target.value)}>
+              <option value="all">All Types</option>
+              <option value="client">Client Meetings</option>
+              <option value="internal">Internal / Vendor</option>
+            </select>
+            <input type="date" style={S.searchInput} value={pastFrom} onChange={e => setPastFrom(e.target.value)} title="From date" />
+            <span style={{ color: "#8FA0AF" }}>to</span>
+            <input type="date" style={S.searchInput} value={pastTo} onChange={e => setPastTo(e.target.value)} title="To date" />
+            {(pastSearch || pastBroker !== "all" || pastType !== "all" || pastFrom || pastTo) && (
+              <button style={S.cancelBtn} onClick={() => { setPastSearch(""); setPastBroker("all"); setPastType("all"); setPastFrom(""); setPastTo(""); }}>Clear filters</button>
+            )}
+          </div>
+          {(() => {
+            const todayStr = dateKey(TODAY);
+            const q = pastSearch.trim().toLowerCase();
+            const results = appointments
+              .filter(a => a.date <= todayStr) // past + today only
+              .filter(a => !q || a.clientName.toLowerCase().includes(q) || (a.subject || "").toLowerCase().includes(q))
+              .filter(a => pastBroker === "all" || a.broker === pastBroker)
+              .filter(a => pastType === "all" || (pastType === "client" ? a.isClientMeeting !== false : a.isClientMeeting === false))
+              .filter(a => !pastFrom || a.date >= pastFrom)
+              .filter(a => !pastTo || a.date <= pastTo)
+              .sort((a, b) => new Date(b.date) - new Date(a.date) || b.startHour - a.startHour);
+            return results.length === 0
+              ? <div style={S.empty}><div style={{ fontSize: 32 }}>🔍</div>No past meetings match these filters.</div>
+              : <table style={S.clientTable}>
+                  <thead><tr>{["Date","Time","Client / Title","Type","Broker","Subject","Status"].map(h => <th key={h} style={S.clientTh}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {results.map(a => (
+                      <tr key={a.id} style={S.clientRow}>
+                        <td style={S.clientTd}>{fmtFull(a.date)}</td>
+                        <td style={S.clientTd}>{hourLabel(a.startHour)}</td>
+                        <td style={S.clientTd} onClick={() => openEditAppt(a)}>
+                          <strong style={{ cursor: "pointer", color: "#2F5D8A" }}>{a.clientName}</strong>
+                        </td>
+                        <td style={S.clientTd}>
+                          {a.isClientMeeting === false
+                            ? <span style={{ background: "#F1F4F7", color: "#6B7C8C", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Internal</span>
+                            : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>}
+                        </td>
+                        <td style={S.clientTd}>{a.broker}</td>
+                        <td style={{ ...S.clientTd, color: "#6B7C8C" }}>{a.subject || "—"}</td>
+                        <td style={S.clientTd}>
+                          {a.status === "cancelled"
+                            ? <span style={{ color: "#B0463B", fontWeight: 600 }}>Cancelled</span>
+                            : a.status === "completed"
+                            ? <span style={{ color: "#3F8361", fontWeight: 600 }}>Completed</span>
+                            : <span style={{ color: "#8FA0AF" }}>Scheduled</span>}
                         </td>
                       </tr>
                     ))}
