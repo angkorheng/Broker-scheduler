@@ -497,9 +497,6 @@ export default function App() {
       +   "<div class='meta'><strong>Date:</strong> " + dateLabel + "<br><strong>Generated:</strong> " + generatedOn + " at " + generatedAt + "</div></div>"
       + "</div>"
       + brokerBlocksHtml
-      + "<div class='summary'>"
-      +   "<div class='sum-block'><h3>Total Appointments</h3><div class='big-num'>" + totalAppts + "</div><div class='big-label'>" + dateLabel + "</div></div>"
-      + "</div>"
       + "<div class='footer'><span>Cinergy Financial Scheduler &mdash; Confidential &amp; Internal Use Only</span><span>Generated " + generatedOn + "</span></div>"
       + "<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>"
       + "</body></html>";
