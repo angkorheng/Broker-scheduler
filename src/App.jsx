@@ -712,6 +712,10 @@ export default function App() {
                             const rows = appt.duration / 0.5;
                             const hasNotes = (notes[appt.clientId] || []).length > 0;
                             const isCancelled = appt.status === "cancelled";
+                            const apptClient = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
+                            const dpps = apptClient?.availableDpps;
+                            const ifs = apptClient?.availableIfs;
+                            const fmtMoney = n => "$" + Number(n).toLocaleString("en-US");
                             cells.push(
                               <div key={hour} onClick={() => openEditAppt(appt)} style={{
                                 height: `${rows * 44 - 4}px`, margin: "2px 6px", padding: "6px 10px", borderRadius: 6, cursor: "pointer",
@@ -722,6 +726,11 @@ export default function App() {
                               }}>
                                 <div style={{ fontSize: 11.5, color: "#8FA0AF", fontWeight: 600 }}>{hourLabel(hour)}</div>
                                 <div style={{ fontWeight: 700, fontSize: 13.5, color: "#1C2B3A", textDecoration: isCancelled ? "line-through" : "none" }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                {(dpps != null || ifs != null) && (
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: "#3F8361", marginTop: 1 }}>
+                                    {dpps != null && `DPP ${fmtMoney(dpps)}`}{dpps != null && ifs != null && "  ·  "}{ifs != null && `IF ${fmtMoney(ifs)}`}
+                                  </div>
+                                )}
                                 {appt.subject && <div style={{ fontSize: 11.5, color: "#6B7C8C", fontStyle: "italic" }}>{appt.subject}</div>}
                                 {appt.location && <div style={{ fontSize: 11, color: "#8FA0AF", marginTop: 2 }}>{appt.location}{appt.confirmed ? " · ✓ Confirmed" : ""}</div>}
                               </div>
