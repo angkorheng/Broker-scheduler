@@ -5,6 +5,21 @@ const SUPABASE_ANON_KEY = 'sb_publishable_yPSfmZnsAZTh1WD7Ccm_ag_NNUig5Mu';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Every write goes through this so failures are never silent again.
+// Logs to console always; also alerts in the UI so it's impossible to miss during testing.
+function check(label, { error }) {
+  if (error) {
+    console.error(`[Supabase error] ${label}:`, error);
+    if (typeof window !== 'undefined') {
+      window.__lastSupabaseError = { label, error, at: new Date().toISOString() };
+      // Visible but non-blocking — a small red toast instead of a hard alert() would be nicer
+      // long-term, but for now this guarantees a failed save is never invisible.
+      alert(`⚠️ Save failed (${label}): ${error.message || 'Unknown error'}\n\nYour change was NOT saved to the database.`);
+    }
+  }
+  return error;
+}
+
 export async function loadAll() {
   const [appts, clientsRes, meetingNotesRes, settingsRes] = await Promise.all([
     supabase.from('appointments').select('*'),
@@ -12,6 +27,11 @@ export async function loadAll() {
     supabase.from('meeting_notes').select('*'),
     supabase.from('settings').select('*'),
   ]);
+
+  if (appts.error) console.error('[Supabase error] load appointments:', appts.error);
+  if (clientsRes.error) console.error('[Supabase error] load clients:', clientsRes.error);
+  if (meetingNotesRes.error) console.error('[Supabase error] load meeting_notes:', meetingNotesRes.error);
+  if (settingsRes.error) console.error('[Supabase error] load settings:', settingsRes.error);
 
   const appointments = (appts.data || []).map(a => ({
     id: a.id, clientId: a.client_id, broker: a.broker, date: a.date,
@@ -54,7 +74,7 @@ export async function loadAll() {
 }
 
 export async function upsertAppt(appt) {
-  await supabase.from('appointments').upsert({
+  const res = await supabase.from('appointments').upsert({
     id: appt.id, client_id: appt.clientId || null, broker: appt.broker, date: appt.date,
     start_hour: appt.startHour, duration: appt.duration,
     client_name: appt.clientName, notes: appt.notes || '',
@@ -63,11 +83,12 @@ export async function upsertAppt(appt) {
     subject: appt.subject || '', from_redtail: appt.fromRedtail || false,
     updated_at: new Date().toISOString(),
   });
+  check('upsertAppt', res);
 }
 
 export async function upsertAppts(appts) {
   if (!appts.length) return;
-  await supabase.from('appointments').upsert(appts.map(a => ({
+  const res = await supabase.from('appointments').upsert(appts.map(a => ({
     id: a.id, client_id: a.clientId || null, broker: a.broker, date: a.date,
     start_hour: a.startHour, duration: a.duration,
     client_name: a.clientName, notes: a.notes || '',
@@ -76,21 +97,24 @@ export async function upsertAppts(appts) {
     subject: a.subject || '', from_redtail: a.fromRedtail || false,
     updated_at: new Date().toISOString(),
   })));
+  check('upsertAppts', res);
 }
 
 // Cancel (not delete) — preserves history for the cancelled-meetings section
 export async function cancelApptDB(id, reason) {
-  await supabase.from('appointments').update({
+  const res = await supabase.from('appointments').update({
     status: 'cancelled', cancel_reason: reason || '', updated_at: new Date().toISOString(),
   }).eq('id', id);
+  check('cancelApptDB', res);
 }
 
 export async function deleteApptDB(id) {
-  await supabase.from('appointments').delete().eq('id', id);
+  const res = await supabase.from('appointments').delete().eq('id', id);
+  check('deleteApptDB', res);
 }
 
 export async function upsertClient(client) {
-  await supabase.from('clients').upsert({
+  const res = await supabase.from('clients').upsert({
     id: client.id, name: client.name,
     phone: client.phone || '', email: client.email || '',
     imported_from: client.importedFrom || '',
@@ -104,11 +128,12 @@ export async function upsertClient(client) {
     available_ifs: client.availableIfs ?? null,
     available_notes: client.availableNotes || '',
   });
+  check('upsertClient', res);
 }
 
 export async function upsertClients(clients) {
   if (!clients.length) return;
-  await supabase.from('clients').upsert(clients.map(c => ({
+  const res = await supabase.from('clients').upsert(clients.map(c => ({
     id: c.id, name: c.name,
     phone: c.phone || '', email: c.email || '',
     imported_from: c.importedFrom || '',
@@ -122,11 +147,12 @@ export async function upsertClients(clients) {
     available_ifs: c.availableIfs ?? null,
     available_notes: c.availableNotes || '',
   })));
+  check('upsertClients', res);
 }
 
 // Meeting notes are tied to a client (and optionally a specific appointment)
 export async function insertMeetingNote(clientId, entry) {
-  await supabase.from('meeting_notes').insert({
+  const res = await supabase.from('meeting_notes').insert({
     client_id: clientId,
     appointment_id: entry.appointmentId || null,
     broker: entry.broker || null,
@@ -135,16 +161,19 @@ export async function insertMeetingNote(clientId, entry) {
     follow_up_action: entry.followUpAction || '',
     next_steps: entry.nextSteps || '',
   });
+  check('insertMeetingNote', res);
 }
 
 export async function saveSetting(key, value) {
-  await supabase.from('settings').upsert({ key, value });
+  const res = await supabase.from('settings').upsert({ key, value });
+  check('saveSetting', res);
 }
 
 export async function deleteClientDB(clientId, clientName) {
-  await Promise.all([
+  const results = await Promise.all([
     supabase.from('clients').delete().eq('id', clientId),
     supabase.from('appointments').delete().eq('client_name', clientName),
     supabase.from('meeting_notes').delete().eq('client_id', clientId),
   ]);
+  results.forEach(r => check('deleteClientDB', r));
 }

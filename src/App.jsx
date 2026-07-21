@@ -338,14 +338,17 @@ export default function App() {
       fromRedtail: form.fromRedtail || false,
     };
     if (modal.type === "new") {
-      const id = Date.now().toString();
+      const id = crypto.randomUUID();
       const newAppt = { ...apptData, id };
       setAppts(prev => [...prev, newAppt]);
       upsertAppt(newAppt);
       if (!matchedClient) {
-        const newClient = { id: id + "c", name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker };
+        const newClientId = crypto.randomUUID();
+        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker };
+        newAppt.clientId = newClientId;
         setClients(prev => [...prev, newClient]);
         upsertClient(newClient);
+        upsertAppt(newAppt); // re-save with the linked clientId now that we have it
       }
     } else {
       const updatedAppt = { ...apptData, id: form.id };
@@ -1046,7 +1049,7 @@ export default function App() {
               <button style={S.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={S.saveBtn} onClick={() => {
                 if (!form.name.trim()) return;
-                const newClient = { ...form, id: Date.now().toString(), importedFrom: "manual", assignedBroker: "" };
+                const newClient = { ...form, id: crypto.randomUUID(), importedFrom: "manual", assignedBroker: "" };
                 setClients(prev => [...prev, newClient]);
                 upsertClient(newClient);
                 setModal(null);
