@@ -473,7 +473,7 @@ export default function App() {
       "tr:nth-child(even) td { background:#FAFBFC; }",
       "td.time { white-space:nowrap; font-weight:600; color:#2F5D8A; }",
       "td.name { font-weight:600; }",
-      ".client-name { font-weight:700; }",
+      ".client-name { font-weight:800; color:#000; font-size:13px; }",
       ".subject { color:#8FA0AF; font-style:italic; font-weight:400; font-size:11px; margin-top:1px; }",
       "td.center { text-align:center; }",
       "td.money { font-weight:600; color:#3F8361; }",
