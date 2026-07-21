@@ -341,7 +341,7 @@ export default function App() {
     setModal({ type: "edit" });
   }
 
-  function saveAppt() {
+  async function saveAppt() {
     if (!form.clientName.trim()) return;
     const duration = Math.round((form.endHour - form.startHour) * 2) / 2;
     if (duration <= 0) return;
@@ -363,30 +363,31 @@ export default function App() {
     };
     if (modal.type === "new") {
       const id = crypto.randomUUID();
-      const newAppt = { ...apptData, id };
-      setAppts(prev => [...prev, newAppt]);
-      upsertAppt(newAppt);
+      let newAppt = { ...apptData, id };
       if (isClientMeeting && !matchedClient) {
+        // Create (and WAIT FOR) the client record first — the appointment's
+        // client_id foreign key can't point at a row that isn't committed yet.
         const newClientId = crypto.randomUUID();
         const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker, ...financialFields };
-        newAppt.clientId = newClientId;
+        newAppt = { ...newAppt, clientId: newClientId };
         setClients(prev => [...prev, newClient]);
-        upsertClient(newClient);
-        upsertAppt(newAppt); // re-save with the linked clientId now that we have it
+        await upsertClient(newClient);
       } else if (isClientMeeting && matchedClient) {
         const updatedClient = { ...matchedClient, ...financialFields };
         setClients(prev => prev.map(c => c.id === matchedClient.id ? updatedClient : c));
-        upsertClient(updatedClient);
+        await upsertClient(updatedClient);
       }
+      setAppts(prev => [...prev, newAppt]);
+      await upsertAppt(newAppt);
     } else {
       const updatedAppt = { ...apptData, id: form.id };
-      setAppts(prev => prev.map(a => a.id === form.id ? updatedAppt : a));
-      upsertAppt(updatedAppt);
       if (isClientMeeting && matchedClient) {
         const updatedClient = { ...matchedClient, ...financialFields };
         setClients(prev => prev.map(c => c.id === matchedClient.id ? updatedClient : c));
-        upsertClient(updatedClient);
+        await upsertClient(updatedClient);
       }
+      setAppts(prev => prev.map(a => a.id === form.id ? updatedAppt : a));
+      await upsertAppt(updatedAppt);
     }
     setModal(null);
   }
