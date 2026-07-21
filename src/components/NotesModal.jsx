@@ -22,8 +22,8 @@ function fmtDateTime() {
   return new Date().toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export default function NotesModal({ client, brokers, notes, appointments, onClose, onSave, onSaveClient }) {
-  const [view, setView] = useState("notes"); // notes | history | cancelled | financial
+export default function NotesModal({ client, brokers, notes, appointments, onClose, onSave, onSaveClient, initialView }) {
+  const [view, setView] = useState(initialView || "notes"); // notes | history | cancelled | financial
   const clientNotes = (notes[client.id] || []).slice().reverse();
   const [form, setForm] = useState({ broker: brokers[0] || "", note: "", followUp: "", nextSteps: "" });
   const [finForm, setFinForm] = useState({

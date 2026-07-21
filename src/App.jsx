@@ -118,6 +118,7 @@ export default function App() {
   const [syncMsg, setSyncMsg]       = useState({ redtail: "", pipedrive: "" });
   const [loading, setLoading]       = useState(true);
   const [notesClient, setNotesClient] = useState(null);
+  const [notesClientView, setNotesClientView] = useState("notes");
   const [reportDate, setReportDate] = useState(dateKey(TODAY));
   const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
@@ -815,7 +816,7 @@ export default function App() {
                     </td>
                     <td style={S.clientTd}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <button onClick={() => setNotesClient(c)}
+                        <button onClick={() => { setNotesClientView("notes"); setNotesClient(c); }}
                           style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `2px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                           📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
                         </button>
@@ -867,7 +868,7 @@ export default function App() {
                         <td style={{ ...S.clientTd, color: "#ff6b6b", fontWeight: 700 }}>{ds === Infinity ? "Never" : `${ds} days`}</td>
                         <td style={S.clientTd}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            <button onClick={() => setNotesClient(c)}
+                            <button onClick={() => { setNotesClientView("notes"); setNotesClient(c); }}
                               style={{ background: clientNoteCount > 0 ? "#1a3a1a" : "#0a1e30", border: `2px solid ${clientNoteCount > 0 ? "#4caf73" : "#1a3a5c"}`, color: clientNoteCount > 0 ? "#4caf73" : "#5a7a9a", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
                             </button>
@@ -1023,8 +1024,12 @@ export default function App() {
                     </button>
                   )}
                   <button style={{ ...S.cancelBtn, borderColor: "#4caf73", color: "#4caf73" }}
-                    onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClient(c); } }}>
+                    onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("notes"); setNotesClient(c); } }}>
                     📝 Meeting Notes
+                  </button>
+                  <button style={{ ...S.cancelBtn, borderColor: "#4db8ff", color: "#4db8ff" }}
+                    onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("financial"); setNotesClient(c); } else { alert("This client isn't in your directory yet — save the appointment first, or add them under All Clients."); } }}>
+                    💰 Financial Info
                   </button>
                 </>
               )}
@@ -1060,7 +1065,7 @@ export default function App() {
       )}
 
       {notesClient && (
-        <NotesModal client={notesClient} brokers={brokers} notes={notes} appointments={appointments}
+        <NotesModal client={notesClient} brokers={brokers} notes={notes} appointments={appointments} initialView={notesClientView}
           onClose={() => setNotesClient(null)}
           onSave={(clientId, entry) => addNote(clientId, entry)}
           onSaveClient={(updatedClient) => {
