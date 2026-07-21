@@ -3,7 +3,7 @@ import ImportedFromBadge from './components/ImportedFromBadge';
 import NotesModal from './components/NotesModal';
 import { WORKER_URL, DEFAULT_BROKERS, HOURS, DAYS } from './utils/constants';
 import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabel } from './utils/dateUtils';
-import { loadAll, upsertAppt, upsertAppts, deleteApptDB, upsertClient, upsertClients, insertNote, saveSetting, deleteClientDB } from './utils/supabase';
+import { loadAll, upsertAppt, upsertAppts, deleteApptDB, cancelApptDB, upsertClient, upsertClients, insertMeetingNote, saveSetting, deleteClientDB } from './utils/supabase';
 import { parseCSV } from './utils/csvParser';
 
 const PASS = "Cinergy0361!@";
@@ -118,6 +118,7 @@ export default function App() {
   const [syncMsg, setSyncMsg]       = useState({ redtail: "", pipedrive: "" });
   const [loading, setLoading]       = useState(true);
   const [notesClient, setNotesClient] = useState(null);
+  const [reportDate, setReportDate] = useState(dateKey(TODAY));
   const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
   const loadedRef = useRef(false);
@@ -169,9 +170,15 @@ export default function App() {
     [clients, clientStats, overdueThreshold]
   );
 
-  function addNote(clientName, entry) {
-    setNotes(prev => ({ ...prev, [clientName]: [...(prev[clientName] || []), entry] }));
-    insertNote(clientName, entry);
+  function addNote(clientId, entry) {
+    setNotes(prev => ({ ...prev, [clientId]: [...(prev[clientId] || []), entry] }));
+    insertMeetingNote(clientId, entry);
+  }
+
+  function cancelAppt(id, reason) {
+    setAppts(prev => prev.map(a => a.id === id ? { ...a, status: "cancelled", cancelReason: reason || "" } : a));
+    cancelApptDB(id, reason);
+    setModal(null);
   }
 
   function setClientStatus(clientId, status) {
@@ -315,20 +322,27 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "" }); setModal({ type: "new" }); }
+  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }
   function openEditAppt(appt) { setForm({ ...appt, endHour: appt.startHour + appt.duration }); setModal({ type: "edit" }); }
 
   function saveAppt() {
     if (!form.clientName.trim()) return;
     const duration = Math.round((form.endHour - form.startHour) * 2) / 2;
     if (duration <= 0) return;
-    const apptData = { broker: form.broker, date: form.date, startHour: form.startHour, duration, clientName: form.clientName, notes: form.notes || "", fromPipedrive: form.fromPipedrive || false };
+    const matchedClient = clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase());
+    const apptData = {
+      broker: form.broker, date: form.date, startHour: form.startHour, duration,
+      clientName: form.clientName, clientId: matchedClient ? matchedClient.id : null,
+      notes: form.notes || "", subject: form.subject || "", location: form.location || "",
+      confirmed: form.confirmed || false, status: form.status || "scheduled",
+      fromRedtail: form.fromRedtail || false,
+    };
     if (modal.type === "new") {
       const id = Date.now().toString();
       const newAppt = { ...apptData, id };
       setAppts(prev => [...prev, newAppt]);
       upsertAppt(newAppt);
-      if (!clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase())) {
+      if (!matchedClient) {
         const newClient = { id: id + "c", name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker };
         setClients(prev => [...prev, newClient]);
         upsertClient(newClient);
@@ -347,112 +361,120 @@ export default function App() {
     if (!window.confirm(`Delete "${client.name}" and all their appointments and notes? This cannot be undone.`)) return;
     setClients(prev => prev.filter(c => c.id !== client.id));
     setAppts(prev => prev.filter(a => a.clientName !== client.name));
-    setNotes(prev => { const n = { ...prev }; delete n[client.name]; return n; });
+    setNotes(prev => { const n = { ...prev }; delete n[client.id]; return n; });
     deleteClientDB(client.id, client.name);
   }
 
-  function generateReport() {
-    const weekAppts = appointments.filter(a => weekDays.some(w => dateKey(w.date) === a.date));
-    if (weekAppts.length === 0) { alert("No appointments scheduled for this week."); return; }
+  function generateReport(dateStr) {
+    const dayAppts = appointments
+      .filter(a => a.date === dateStr && a.status !== "cancelled")
+      .sort((a, b) => a.startHour - b.startHour);
 
+    if (dayAppts.length === 0) {
+      if (!window.confirm("No appointments scheduled for this day. Generate an empty report anyway?")) return;
+    }
+
+    const dateObj = new Date(dateStr + "T00:00:00");
+    const dateLabel = dateObj.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
     const now = new Date();
-    const generatedOn  = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-    const generatedAt  = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    const wStart       = weekDays[0].date;
-    const wEnd         = weekDays[6].date;
-    const weekLabel    = wStart.toLocaleDateString("en-US", { month: "long", day: "numeric" }) + " \u2013 " + wEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const generatedOn = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    const generatedAt = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
-    const brokerCounts = {};
+    function clientFor(appt) {
+      return clients.find(c => c.id === appt.clientId) || clients.find(c => c.name.toLowerCase() === appt.clientName.toLowerCase());
+    }
+
+    function fmtMoney(n) {
+      if (n === null || n === undefined || n === "") return "";
+      return "$" + Number(n).toLocaleString("en-US");
+    }
+
     let totalAppts = 0;
-    let daySectionsHtml = "";
 
-    weekDays.forEach(({ date }) => {
-      const dk = dateKey(date);
-      const dayAppts = weekAppts
-        .filter(a => a.date === dk)
-        .sort((a, b) => a.startHour - b.startHour || brokers.indexOf(a.broker) - brokers.indexOf(b.broker));
-      if (dayAppts.length === 0) return;
-      totalAppts += dayAppts.length;
+    const brokerBlocksHtml = brokers.map(broker => {
+      const rows = dayAppts.filter(a => a.broker === broker);
+      totalAppts += rows.length;
 
-      const dateLabel = date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-      const rowsHtml = dayAppts.map(a => {
-        brokerCounts[a.broker] = (brokerCounts[a.broker] || 0) + 1;
+      const rowsHtml = rows.map(a => {
+        const c = clientFor(a);
         const durLabel = a.duration === 0.5 ? "30 min" : a.duration === 1 ? "1 hr" : a.duration + " hrs";
         return "<tr>"
-          + "<td class='time'>" + hourLabel(a.startHour) + " &ndash; " + hourLabel(a.startHour + a.duration) + "</td>"
-          + "<td class='client'>" + a.clientName + "</td>"
-          + "<td>" + a.broker + "</td>"
-          + "<td class='center'>" + durLabel + "</td>"
-          + "<td class='notes'>" + (a.notes || "&mdash;") + "</td>"
+          + "<td class='time'>" + hourLabel(a.startHour) + "</td>"
+          + "<td class='name'><div class='client-name'>" + a.clientName + "</div>" + (a.subject ? "<div class='subject'>" + a.subject + "</div>" : "") + "</td>"
+          + "<td class='center'>" + (c?.dateLastAcctSummary ? c.dateLastAcctSummary : "—") + "</td>"
+          + "<td class='center'>" + (c?.rmd70Half ? "✓" : "") + "</td>"
+          + "<td>" + [a.clientName && c?.phone, c?.email].filter(Boolean).join("<br>") + "</td>"
+          + "<td class='center'>" + (a.location || "—") + "</td>"
+          + "<td class='center'>" + (a.confirmed ? "✓" : "") + "</td>"
+          + "<td class='center money'>" + (c?.availableDpps != null ? fmtMoney(c.availableDpps) : "") + "</td>"
+          + "<td class='center money'>" + (c?.availableIfs != null ? fmtMoney(c.availableIfs) : "") + "</td>"
+          + "<td class='notes-col'>" + (c?.availableNotes || "—") + "</td>"
           + "</tr>";
       }).join("");
 
-      daySectionsHtml += "<div class='day-block'>"
-        + "<div class='day-title'>" + dateLabel + "</div>"
+      return "<div class='broker-block'>"
+        + "<div class='broker-header'>" + dateLabel + "<br><span class='broker-name'>" + broker + "</span></div>"
         + "<table><thead><tr>"
-        + "<th>Time</th><th>Client</th><th>Advisor</th><th style='text-align:center'>Duration</th><th>Notes</th>"
-        + "</tr></thead><tbody>" + rowsHtml + "</tbody></table></div>";
-    });
-
-    const brokerRowsHtml = Object.entries(brokerCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([b, n]) => "<tr><td>" + b + "</td><td class='num'>" + n + " appt" + (n !== 1 ? "s" : "") + "</td></tr>")
-      .join("");
+        + "<th>Time</th><th>Name</th><th>Date of Last<br>Acct. Summary</th><th>RMD<br>70½</th><th>Phone/Email</th>"
+        + "<th>Location</th><th>Confir.</th><th>Available<br>for DPPs</th><th>Available<br>for IFs</th><th>Available<br>for NOTES</th>"
+        + "</tr></thead><tbody>" + (rowsHtml || "<tr><td colspan='10' class='empty-row'>No appointments scheduled</td></tr>") + "</tbody></table>"
+        + "</div>";
+    }).join("");
 
     const css = [
       "* { margin:0; padding:0; box-sizing:border-box; }",
-      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:13px; color:#1c2d3e; background:#fff; padding:44px 52px; }",
-      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1a3a5c; padding-bottom:22px; margin-bottom:32px; }",
-      ".company { font-size:26px; font-weight:800; color:#1a3a5c; letter-spacing:-0.5px; }",
-      ".tagline { font-size:13px; color:#6a8aaa; margin-top:3px; }",
+      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1c2d3e; background:#fff; padding:40px 46px; }",
+      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #1a3a5c; padding-bottom:20px; margin-bottom:28px; }",
+      ".company { font-size:24px; font-weight:800; color:#1a3a5c; letter-spacing:-0.5px; }",
+      ".tagline { font-size:12px; color:#6a8aaa; margin-top:3px; }",
       ".hdr-right { text-align:right; }",
-      ".rpt-title { font-size:18px; font-weight:700; color:#2a4a6c; }",
-      ".meta { margin-top:6px; font-size:12px; color:#6a8aaa; line-height:1.9; }",
+      ".rpt-title { font-size:17px; font-weight:700; color:#2a4a6c; }",
+      ".meta { margin-top:6px; font-size:11px; color:#6a8aaa; line-height:1.8; }",
       ".meta strong { color:#1c2d3e; }",
-      ".day-block { margin-bottom:28px; break-inside:avoid; }",
-      ".day-title { background:#1a3a5c; color:#fff; font-size:13px; font-weight:700; padding:8px 14px; border-radius:4px 4px 0 0; letter-spacing:0.2px; }",
+      ".broker-block { margin-bottom:26px; break-inside:avoid; }",
+      ".broker-header { background:#1a3a5c; color:#fff; font-size:12px; font-weight:600; padding:8px 14px; border-radius:4px 4px 0 0; text-align:center; line-height:1.5; }",
+      ".broker-name { font-size:15px; font-weight:800; letter-spacing:0.3px; }",
       "table { width:100%; border-collapse:collapse; }",
       "thead tr { background:#f0f4f8; }",
-      "th { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:#5a7a9a; padding:8px 12px; text-align:left; border-bottom:2px solid #d8e4f0; }",
-      "td { padding:9px 12px; border-bottom:1px solid #e8eff6; vertical-align:top; }",
+      "th { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:#5a7a9a; padding:7px 8px; text-align:center; border-bottom:2px solid #d8e4f0; line-height:1.3; }",
+      "th:nth-child(2) { text-align:left; }",
+      "td { padding:7px 8px; border-bottom:1px solid #e8eff6; vertical-align:top; font-size:11.5px; }",
       "tr:last-child td { border-bottom:none; }",
       "tr:nth-child(even) td { background:#f9fbfd; }",
-      "td.time { white-space:nowrap; font-weight:600; color:#2a4a6c; width:160px; }",
-      "td.client { font-weight:700; }",
+      "td.time { white-space:nowrap; font-weight:600; color:#2a4a6c; }",
+      "td.name { font-weight:600; }",
+      ".client-name { font-weight:700; }",
+      ".subject { color:#6a8aaa; font-style:italic; font-weight:400; font-size:11px; margin-top:1px; }",
       "td.center { text-align:center; }",
-      "td.notes { color:#5a7a9a; font-style:italic; }",
-      ".summary { display:flex; gap:40px; align-items:flex-start; background:#f0f4f8; border:1px solid #d0dde8; border-radius:6px; padding:20px 28px; margin-top:32px; break-inside:avoid; }",
-      ".sum-block h3 { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#6a8aaa; margin-bottom:10px; }",
-      ".big-num { font-size:38px; font-weight:800; color:#1a3a5c; line-height:1; }",
-      ".big-label { font-size:12px; color:#6a8aaa; margin-top:4px; }",
-      ".summary table { background:none; } .summary td { padding:4px 8px; border:none; background:none !important; font-size:12px; } .summary td.num { text-align:right; font-weight:700; color:#1a3a5c; }",
+      "td.money { font-weight:600; color:#2a6c3a; }",
+      "td.notes-col { color:#5a7a9a; font-style:italic; font-size:11px; }",
+      ".empty-row { text-align:center; color:#9aacbc; font-style:italic; padding:14px; }",
+      ".summary { display:flex; gap:36px; align-items:flex-start; background:#f0f4f8; border:1px solid #d0dde8; border-radius:6px; padding:18px 26px; margin-top:28px; break-inside:avoid; }",
+      ".sum-block h3 { font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#6a8aaa; margin-bottom:8px; }",
+      ".big-num { font-size:34px; font-weight:800; color:#1a3a5c; line-height:1; }",
+      ".big-label { font-size:11px; color:#6a8aaa; margin-top:4px; }",
       ".divider { width:1px; background:#d0dde8; align-self:stretch; }",
-      ".footer { margin-top:36px; padding-top:14px; border-top:1px solid #d0dde8; display:flex; justify-content:space-between; font-size:11px; color:#9aacbc; }",
-      "@media print { body { padding:20px 28px; } .day-block { break-inside:avoid; } }",
+      ".footer { margin-top:32px; padding-top:12px; border-top:1px solid #d0dde8; display:flex; justify-content:space-between; font-size:10.5px; color:#9aacbc; }",
+      "@media print { body { padding:18px 24px; } .broker-block { break-inside:avoid; } }",
     ].join(" ");
 
     const html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
-      + "<title>Cinergy Financial \u2014 Weekly Report " + weekLabel + "</title>"
+      + "<title>Cinergy Financial \u2014 Daily Appointment Confirmation " + dateLabel + "</title>"
       + "<style>" + css + "</style></head><body>"
       + "<div class='hdr'>"
       +   "<div><div class='company'>Cinergy Financial</div><div class='tagline'>Financial Advisory Services</div></div>"
-      +   "<div class='hdr-right'><div class='rpt-title'>Weekly Appointment Report</div>"
-      +   "<div class='meta'><strong>Period:</strong> " + weekLabel + "<br><strong>Generated:</strong> " + generatedOn + " at " + generatedAt + "</div></div>"
+      +   "<div class='hdr-right'><div class='rpt-title'>Daily Appointment Confirmation</div>"
+      +   "<div class='meta'><strong>Date:</strong> " + dateLabel + "<br><strong>Generated:</strong> " + generatedOn + " at " + generatedAt + "</div></div>"
       + "</div>"
-      + daySectionsHtml
+      + brokerBlocksHtml
       + "<div class='summary'>"
-      +   "<div class='sum-block'><h3>Total Appointments</h3><div class='big-num'>" + totalAppts + "</div><div class='big-label'>This Week</div></div>"
-      +   "<div class='divider'></div>"
-      +   "<div class='sum-block'><h3>By Advisor</h3><table><tbody>" + brokerRowsHtml + "</tbody></table></div>"
-      +   "<div class='divider'></div>"
-      +   "<div class='sum-block'><h3>Week Period</h3><div style='font-size:14px;font-weight:700;color:#1a3a5c;'>" + weekLabel + "</div>"
-      +   "<div style='font-size:12px;color:#6a8aaa;margin-top:4px;'>Mon \u2013 Sun</div></div>"
+      +   "<div class='sum-block'><h3>Total Appointments</h3><div class='big-num'>" + totalAppts + "</div><div class='big-label'>" + dateLabel + "</div></div>"
       + "</div>"
       + "<div class='footer'><span>Cinergy Financial Scheduler &mdash; Confidential &amp; Internal Use Only</span><span>Generated " + generatedOn + "</span></div>"
       + "<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>"
       + "</body></html>";
 
-    const win = window.open("", "_blank", "width=960,height=720");
+    const win = window.open("", "_blank", "width=1100,height=780");
     if (!win) { alert("Please allow pop-ups to generate the report."); return; }
     win.document.write(html);
     win.document.close();
@@ -604,7 +626,10 @@ export default function App() {
               <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, 7))}>Next →</button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button style={S.reportBtn} onClick={generateReport}>📊 Generate Report</button>
+              <select style={{ ...S.weekBtn, cursor: "pointer" }} value={reportDate} onChange={e => setReportDate(e.target.value)}>
+                {weekDays.map(({ name, date }) => <option key={name} value={dateKey(date)}>{name} {fmt(date)}</option>)}
+              </select>
+              <button style={S.reportBtn} onClick={() => generateReport(reportDate)}>📊 Generate Report</button>
               <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
                 ➕ Book New Appointment
               </button>
@@ -866,7 +891,7 @@ export default function App() {
               <button style={S.cancelBtn} onClick={() => setSOp(false)}>✕ Close</button>
             </div>
             <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #1a3a5c", paddingBottom: 12, flexWrap: "wrap" }}>
-              {[["brokers","👥 Brokers"],["redtail","🔴 Redtail"],["pipedrive","🟣 Pipedrive"],["csv","📄 CSV"]].map(([id, label]) => (
+              {[["brokers","👥 Brokers"],["redtail","🔴 Redtail"],["csv","📄 CSV"]].map(([id, label]) => (
                 <button key={id} style={settingsTab === id ? S.stbActive : S.stbBtn} onClick={() => setSTB(id)}>{label}</button>
               ))}
             </div>
@@ -887,15 +912,6 @@ export default function App() {
                 <input style={S.input} type="password" value={creds.redtailKey} onChange={e => setCreds(c => ({ ...c, redtailKey: e.target.value }))} />
                 <button style={{ ...S.saveBtn, marginTop: 14 }} onClick={syncRedtail}>🔄 Sync Redtail</button>
                 {syncMsg.redtail && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, background: syncStatus.redtail === "ok" ? "#0f2a0f" : "#2a0f0f", color: syncStatus.redtail === "ok" ? "#4caf73" : "#ff6b6b" }}>{syncMsg.redtail}</div>}
-              </>
-            )}
-            {settingsTab === "pipedrive" && (
-              <>
-                <div style={S.crmCard}><span style={{ fontSize: 24 }}>🟣</span><div><div style={{ fontWeight: 700, color: "#d0e4f7" }}>Pipedrive CRM</div></div></div>
-                <label style={S.label}>API Token</label>
-                <input style={S.input} type="password" value={creds.pipedriveToken} onChange={e => setCreds(c => ({ ...c, pipedriveToken: e.target.value }))} />
-                <button style={{ ...S.saveBtn, marginTop: 14 }} onClick={syncPipedrive}>🔄 Sync Pipedrive</button>
-                {syncMsg.pipedrive && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 6, fontSize: 12, background: syncStatus.pipedrive === "ok" ? "#0f2a0f" : "#2a0f0f", color: syncStatus.pipedrive === "ok" ? "#4caf73" : "#ff6b6b" }}>{syncMsg.pipedrive}</div>}
               </>
             )}
             {settingsTab === "csv" && (
@@ -936,19 +952,39 @@ export default function App() {
             <label style={S.label}>Client Name</label>
             <input style={S.input} list="client-list" value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Type or select…" />
             <datalist id="client-list">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>
+            <label style={S.label}>Subject / Topic</label>
+            <input style={S.input} value={form.subject || ""} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Oil and Gas, Delivery Meeting…" />
+            <label style={S.label}>Location</label>
+            <select style={S.input} value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}>
+              <option value="">— Select —</option>
+              <option value="PH">Phone (PH)</option>
+              <option value="OFC">Office (OFC)</option>
+              <option value="ZOOM">Zoom</option>
+              <option value="House">Client's House</option>
+            </select>
+            <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={form.confirmed || false} onChange={e => setForm(f => ({ ...f, confirmed: e.target.checked }))} />
+              Confirmed
+            </label>
             <label style={S.label}>Appointment Notes</label>
             <input style={S.input} value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional…" />
             <div style={S.modalActions}>
               {modal.type === "edit" && (
                 <>
                   <button style={S.deleteBtn} onClick={() => deleteAppt(form.id)}>🗑 Delete</button>
+                  {form.status !== "cancelled" && (
+                    <button style={{ ...S.cancelBtn, borderColor: "#ff9a3c", color: "#ff9a3c" }}
+                      onClick={() => { const reason = window.prompt("Reason for cancelling (optional):") || ""; cancelAppt(form.id, reason); }}>
+                      ⚠ Cancel Meeting
+                    </button>
+                  )}
                   <button style={{ ...S.cancelBtn, borderColor: "#4caf73", color: "#4caf73" }}
                     onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClient(c); } }}>
                     📝 Meeting Notes
                   </button>
                 </>
               )}
-              <button style={S.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
+              <button style={S.cancelBtn} onClick={() => setModal(null)}>Close</button>
               <button style={S.saveBtn} onClick={saveAppt}>{modal.type === "new" ? "Book" : "Save"}</button>
             </div>
           </div>
@@ -980,9 +1016,9 @@ export default function App() {
       )}
 
       {notesClient && (
-        <NotesModal client={notesClient} brokers={brokers} notes={notes}
+        <NotesModal client={notesClient} brokers={brokers} notes={notes} appointments={appointments}
           onClose={() => setNotesClient(null)}
-          onSave={(clientName, entry) => addNote(clientName, entry)} />
+          onSave={(clientId, entry) => addNote(clientId, entry)} />
       )}
     </div>
   );
