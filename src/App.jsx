@@ -435,7 +435,6 @@ export default function App() {
 
       const rowsHtml = rows.map(a => {
         const c = clientFor(a);
-        const durLabel = a.duration === 0.5 ? "30 min" : a.duration === 1 ? "1 hr" : a.duration + " hrs";
         return "<tr>"
           + "<td class='time'>" + hourLabel(a.startHour) + "</td>"
           + "<td class='name'><div class='client-name'>" + a.clientName + "</div>" + (a.subject ? "<div class='subject'>" + a.subject + "</div>" : "") + "</td>"
@@ -453,47 +452,44 @@ export default function App() {
       return "<div class='broker-block'>"
         + "<div class='broker-header'>" + dateLabel + "<br><span class='broker-name'>" + broker + "</span></div>"
         + "<table><thead><tr>"
-        + "<th>Time</th><th>Name</th><th>Date of Last<br>Acct. Summary</th><th>RMD<br>70½</th><th>Phone/Email</th>"
-        + "<th>Location</th><th>Confir.</th><th>Available<br>for DPPs</th><th>Available<br>for IFs</th><th>Available<br>for NOTES</th>"
+        + "<th>Time</th><th>Name</th><th>Last Acct<br>Summary</th><th>RMD<br>70½</th><th>Phone/Email</th>"
+        + "<th>Loc.</th><th>Confir.</th><th>DPPs</th><th>IFs</th><th>NOTES</th>"
         + "</tr></thead><tbody>" + (rowsHtml || "<tr><td colspan='10' class='empty-row'>No appointments scheduled</td></tr>") + "</tbody></table>"
         + "</div>";
     }).join("");
 
     const css = [
       "* { margin:0; padding:0; box-sizing:border-box; }",
-      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1C2B3A; background:#fff; padding:40px 46px; }",
-      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #DCE3EA; padding-bottom:20px; margin-bottom:28px; }",
-      ".company { font-size:24px; font-weight:800; color:#1C2B3A; letter-spacing:-0.5px; }",
-      ".tagline { font-size:12px; color:#8FA0AF; margin-top:3px; }",
+      "@page { size: landscape; margin: 8mm; }",
+      "body { font-family:'Segoe UI',Arial,sans-serif; font-size:11px; color:#1C2B3A; background:#fff; padding:14px 18px; }",
+      ".hdr { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #DCE3EA; padding-bottom:8px; margin-bottom:10px; }",
+      ".company { font-size:18px; font-weight:800; color:#1C2B3A; letter-spacing:-0.5px; }",
+      ".tagline { font-size:10px; color:#8FA0AF; margin-top:1px; }",
       ".hdr-right { text-align:right; }",
-      ".rpt-title { font-size:17px; font-weight:700; color:#2F5D8A; }",
-      ".meta { margin-top:6px; font-size:11px; color:#8FA0AF; line-height:1.8; }",
+      ".rpt-title { font-size:13px; font-weight:700; color:#2F5D8A; }",
+      ".meta { margin-top:3px; font-size:9.5px; color:#8FA0AF; line-height:1.5; }",
       ".meta strong { color:#1C2B3A; }",
-      ".broker-block { margin-bottom:26px; break-inside:avoid; }",
-      ".broker-header { background:#F1F4F7; color:#1C2B3A; font-size:12px; font-weight:600; padding:8px 14px; border-radius:4px 4px 0 0; text-align:center; line-height:1.5; border:1px solid #DCE3EA; border-bottom:none; }",
-      ".broker-name { font-size:16px; font-weight:800; color:#000; letter-spacing:0.3px; }",
-      "table { width:100%; border-collapse:collapse; }",
+      ".report-grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px 14px; }",
+      ".broker-block { break-inside:avoid; }",
+      ".broker-header { background:#F1F4F7; color:#1C2B3A; font-size:9px; font-weight:600; padding:3px 10px; border-radius:4px 4px 0 0; text-align:center; line-height:1.25; border:1px solid #DCE3EA; border-bottom:none; }",
+      ".broker-name { font-size:12.5px; font-weight:800; color:#000; letter-spacing:0.2px; }",
+      "table { width:100%; border-collapse:collapse; table-layout:fixed; }",
       "thead tr { background:#F1F4F7; }",
-      "th { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:#8FA0AF; padding:7px 8px; text-align:center; border-bottom:2px solid #DDE6EE; line-height:1.3; }",
+      "th { font-size:7.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.2px; color:#8FA0AF; padding:3px 4px; text-align:center; border-bottom:2px solid #DDE6EE; line-height:1.2; }",
       "th:nth-child(2) { text-align:left; }",
-      "td { padding:7px 8px; border-bottom:1px solid #EEF2F6; vertical-align:top; font-size:11.5px; }",
+      "td { padding:2.5px 4px; border-bottom:1px solid #EEF2F6; vertical-align:top; font-size:8.5px; overflow-wrap:break-word; }",
       "tr:last-child td { border-bottom:none; }",
       "tr:nth-child(even) td { background:#FAFBFC; }",
       "td.time { white-space:nowrap; font-weight:600; color:#2F5D8A; }",
       "td.name { font-weight:600; }",
       ".client-name { font-weight:700; }",
-      ".subject { color:#8FA0AF; font-style:italic; font-weight:400; font-size:11px; margin-top:1px; }",
+      ".subject { color:#8FA0AF; font-style:italic; font-weight:400; font-size:8px; margin-top:0.5px; }",
       "td.center { text-align:center; }",
       "td.money { font-weight:600; color:#3F8361; }",
-      "td.notes-col { color:#8FA0AF; font-style:italic; font-size:11px; }",
-      ".empty-row { text-align:center; color:#A9B4BF; font-style:italic; padding:14px; }",
-      ".summary { display:flex; gap:36px; align-items:flex-start; background:#F1F4F7; border:1px solid #DCE3EA; border-radius:6px; padding:18px 26px; margin-top:28px; break-inside:avoid; }",
-      ".sum-block h3 { font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#8FA0AF; margin-bottom:8px; }",
-      ".big-num { font-size:34px; font-weight:800; color:#1C2B3A; line-height:1; }",
-      ".big-label { font-size:11px; color:#8FA0AF; margin-top:4px; }",
-      ".divider { width:1px; background:#DCE3EA; align-self:stretch; }",
-      ".footer { margin-top:32px; padding-top:12px; border-top:1px solid #DCE3EA; display:flex; justify-content:space-between; font-size:10.5px; color:#A9B4BF; }",
-      "@media print { body { padding:18px 24px; } .broker-block { break-inside:avoid; } }",
+      "td.notes-col { color:#8FA0AF; font-style:italic; font-size:8px; }",
+      ".empty-row { text-align:center; color:#A9B4BF; font-style:italic; padding:8px; }",
+      ".footer { margin-top:10px; padding-top:6px; border-top:1px solid #DCE3EA; display:flex; justify-content:space-between; font-size:8.5px; color:#A9B4BF; }",
+      "@media print { body { padding:6px 10px; } .broker-block { break-inside:avoid; } }",
     ].join(" ");
 
     const html = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
@@ -504,7 +500,7 @@ export default function App() {
       +   "<div class='hdr-right'><div class='rpt-title'>Daily Appointment Confirmation</div>"
       +   "<div class='meta'><strong>Date:</strong> " + dateLabel + "<br><strong>Generated:</strong> " + generatedOn + " at " + generatedAt + "</div></div>"
       + "</div>"
-      + brokerBlocksHtml
+      + "<div class='report-grid'>" + brokerBlocksHtml + "</div>"
       + "<div class='footer'><span>Cinergy Financial Scheduler &mdash; Confidential &amp; Internal Use Only</span><span>Generated " + generatedOn + "</span></div>"
       + "<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>"
       + "</body></html>";
