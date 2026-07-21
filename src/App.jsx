@@ -120,6 +120,8 @@ export default function App() {
   const [notesClient, setNotesClient] = useState(null);
   const [notesClientView, setNotesClientView] = useState("notes");
   const [reportDate, setReportDate] = useState(dateKey(TODAY));
+  const [scheduleView, setScheduleView] = useState("day"); // day | week
+  const [selectedDay, setSelectedDay] = useState(TODAY);
   const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
   const loadedRef = useRef(false);
@@ -648,82 +650,152 @@ export default function App() {
         <div style={S.page}>
           <div style={{ ...S.weekNav, justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, -7))}>← Prev</button>
-              <span style={S.weekLabel}>{fmt(weekStart)} — {fmt(addDays(weekStart, 6))}</span>
-              <button style={S.weekBtn} onClick={() => setWeekStart(getMondayOf(TODAY))}>Today</button>
-              <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, 7))}>Next →</button>
+              <div style={{ display: "flex", background: "#EEF1F5", borderRadius: 8, padding: 3, gap: 2 }}>
+                <button onClick={() => setScheduleView("day")} style={{ background: scheduleView === "day" ? "#FFFFFF" : "none", border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 700, color: scheduleView === "day" ? "#2F5D8A" : "#6B7C8C", boxShadow: scheduleView === "day" ? "0 1px 2px rgba(28,43,58,0.1)" : "none" }}>Day</button>
+                <button onClick={() => setScheduleView("week")} style={{ background: scheduleView === "week" ? "#FFFFFF" : "none", border: "none", borderRadius: 6, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 700, color: scheduleView === "week" ? "#2F5D8A" : "#6B7C8C", boxShadow: scheduleView === "week" ? "0 1px 2px rgba(28,43,58,0.1)" : "none" }}>Week</button>
+              </div>
+              {scheduleView === "day" ? (
+                <>
+                  <button style={S.weekBtn} onClick={() => setSelectedDay(d => addDays(d, -1))}>← Prev</button>
+                  <span style={S.weekLabel}>{fmtFull(dateKey(selectedDay))}</span>
+                  <button style={S.weekBtn} onClick={() => setSelectedDay(TODAY)}>Today</button>
+                  <button style={S.weekBtn} onClick={() => setSelectedDay(d => addDays(d, 1))}>Next →</button>
+                </>
+              ) : (
+                <>
+                  <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, -7))}>← Prev</button>
+                  <span style={S.weekLabel}>{fmt(weekStart)} — {fmt(addDays(weekStart, 6))}</span>
+                  <button style={S.weekBtn} onClick={() => setWeekStart(getMondayOf(TODAY))}>Today</button>
+                  <button style={S.weekBtn} onClick={() => setWeekStart(w => addDays(w, 7))}>Next →</button>
+                </>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <select style={{ ...S.weekBtn, cursor: "pointer" }} value={reportDate} onChange={e => setReportDate(e.target.value)}>
-                {weekDays.map(({ name, date }) => <option key={name} value={dateKey(date)}>{name} {fmt(date)}</option>)}
-              </select>
-              <button style={S.reportBtn} onClick={() => generateReport(reportDate)}>📊 Generate Report</button>
-              <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: "", notes: "" }); setModal({ type: "new" }); }}>
+              {scheduleView === "week" && (
+                <select style={{ ...S.weekBtn, cursor: "pointer" }} value={reportDate} onChange={e => setReportDate(e.target.value)}>
+                  {weekDays.map(({ name, date }) => <option key={name} value={dateKey(date)}>{name} {fmt(date)}</option>)}
+                </select>
+              )}
+              <button style={S.reportBtn} onClick={() => generateReport(scheduleView === "day" ? dateKey(selectedDay) : reportDate)}>📊 Generate Report</button>
+              <button style={S.addBtn} onClick={() => { setForm({ broker: brokers[0] || "", date: dateKey(scheduleView === "day" ? selectedDay : TODAY), startHour: 9, endHour: 10, clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled", dateLastAcctSummary: "", rmd70Half: false, availableDpps: "", availableIfs: "", availableNotes: "" }); setModal({ type: "new" }); }}>
                 ➕ Book New Appointment
               </button>
             </div>
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={S.grid}>
-              <thead>
-                <tr>
-                  <th style={S.timeHeader}>Time</th>
-                  {weekDays.map(({ name, date }) => (
-                    <th key={name} style={{ ...S.dayHeader, background: dateKey(date) === dateKey(TODAY) ? "#DCE3EA" : "#EEF1F5" }}>
-                      <div style={{ fontWeight: 700 }}>{name}</div>
-                      <div style={{ fontSize: 11, opacity: 0.7 }}>{fmt(date)}</div>
-                    </th>
+
+          {scheduleView === "day" ? (
+            <div style={{ overflowX: "auto" }}>
+              <div style={{ display: "flex", minWidth: (brokers.length + 1) * 240 + 68 }}>
+                <div style={{ width: 68, flexShrink: 0 }}>
+                  <div style={{ height: 54 }} />
+                  {HOURS.filter(h => h < 20).map(hour => (
+                    <div key={hour} style={{ height: 44, textAlign: "right", paddingRight: 10, fontSize: 11.5, color: "#8FA0AF", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }}>
+                      {hour % 1 === 0 ? hourLabel(hour) : ""}
+                    </div>
                   ))}
-                </tr>
-                <tr>
-                  <td style={S.timeCell} />
-                  {weekDays.map(({ name }) => (
-                    <td key={name} style={{ padding: 0 }}>
-                      <div style={S.brokerRow}>
-                        {brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}
-                        <div style={S.staffHeader}>Staff</div>
+                </div>
+                {[...brokers, "Staff"].map(person => {
+                  const isStaff = person === "Staff";
+                  return (
+                    <div key={person} style={{ flex: 1, minWidth: 220, borderLeft: "1px solid #DCE3EA" }}>
+                      <div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center", background: isStaff ? "#EEF4EF" : "#F1F4F7", fontWeight: 700, fontSize: 13.5, color: isStaff ? "#4F8F68" : "#1C2B3A", borderBottom: "1px solid #DCE3EA" }}>
+                        {person}
                       </div>
-                    </td>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {HOURS.filter(h => h < 20).map(hour => (
-                  <tr key={hour} style={hour % 1 === 0 ? S.trFull : S.trHalf}>
-                    <td style={S.timeCell}>{hour % 1 === 0 ? hourLabel(hour) : ""}</td>
+                      {(() => {
+                        const cells = [];
+                        const hoursList = HOURS.filter(h => h < 20);
+                        for (const hour of hoursList) {
+                          const appt = apptAt(person, selectedDay, hour);
+                          const blocked = !appt && isBlockedByPrev(person, selectedDay, hour);
+                          if (blocked) { cells.push(<div key={hour} style={{ height: 44, background: isStaff ? "#EAF3EE" : "#F1F4F7", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }} />); continue; }
+                          if (appt) {
+                            const rows = appt.duration / 0.5;
+                            const hasNotes = (notes[appt.clientId] || []).length > 0;
+                            const isCancelled = appt.status === "cancelled";
+                            cells.push(
+                              <div key={hour} onClick={() => openEditAppt(appt)} style={{
+                                height: `${rows * 44 - 4}px`, margin: "2px 6px", padding: "6px 10px", borderRadius: 6, cursor: "pointer",
+                                background: isCancelled ? "#FBEEEC" : "#FFFFFF", boxShadow: isCancelled ? "none" : "0 1px 3px rgba(28,43,58,0.1)",
+                                border: isCancelled ? "1px dashed #B0463B" : "none",
+                                borderLeft: `3px solid ${isCancelled ? "#B0463B" : isStaff ? "#3F8361" : "#2F5D8A"}`,
+                                opacity: isCancelled ? 0.7 : 1,
+                              }}>
+                                <div style={{ fontSize: 11.5, color: "#8FA0AF", fontWeight: 600 }}>{hourLabel(hour)}</div>
+                                <div style={{ fontWeight: 700, fontSize: 13.5, color: "#1C2B3A", textDecoration: isCancelled ? "line-through" : "none" }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                {appt.subject && <div style={{ fontSize: 11.5, color: "#6B7C8C", fontStyle: "italic" }}>{appt.subject}</div>}
+                                {appt.location && <div style={{ fontSize: 11, color: "#8FA0AF", marginTop: 2 }}>{appt.location}{appt.confirmed ? " · ✓ Confirmed" : ""}</div>}
+                              </div>
+                            );
+                          } else {
+                            const isPast = new Date(dateKey(selectedDay)) < new Date(dateKey(TODAY));
+                            cells.push(<div key={hour} onClick={() => !isPast && openNewAppt(person, selectedDay, hour)} style={{ height: 44, cursor: isPast ? "default" : "pointer", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }} />);
+                          }
+                        }
+                        return cells;
+                      })()}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={S.grid}>
+                <thead>
+                  <tr>
+                    <th style={S.timeHeader}>Time</th>
                     {weekDays.map(({ name, date }) => (
-                      <td key={name} style={{ padding: 0, verticalAlign: "top" }}>
+                      <th key={name} style={{ ...S.dayHeader, background: dateKey(date) === dateKey(TODAY) ? "#DCE3EA" : "#EEF1F5", cursor: "pointer" }} onClick={() => { setSelectedDay(date); setScheduleView("day"); }}>
+                        <div style={{ fontWeight: 700 }}>{name}</div>
+                        <div style={{ fontSize: 11, opacity: 0.7 }}>{fmt(date)}</div>
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td style={S.timeCell} />
+                    {weekDays.map(({ name }) => (
+                      <td key={name} style={{ padding: 0 }}>
                         <div style={S.brokerRow}>
-                          {[...brokers, "Staff"].map((person, pi) => {
-                            const isStaff = pi >= brokers.length;
-                            const appt = apptAt(person, date, hour);
-                            const blocked = !appt && isBlockedByPrev(person, date, hour);
-                            if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#EAF3EE" : S.blockedCell.background }} />;
-                            if (appt) {
-                              const rows = appt.duration / 0.5;
-                              const hasNotes = (notes[appt.clientName] || []).length > 0;
-                              const bg = isStaff
-                                ? (appt.duration === 2 ? "#E3F0E8" : appt.duration === 1.5 ? "#E3F0E8" : "#E8F1EC")
-                                : (appt.duration === 2 ? "#E7EEF5" : appt.duration === 1.5 ? "#E3EDF5" : "#EDF2F7");
-                              return (
-                                <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, background: bg, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#3F8361" : "#2F5D8A"}` }} onClick={() => openEditAppt(appt)}>
-                                  <div style={{ ...S.apptName, color: isStaff ? "#1F4A34" : S.apptName.color }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
-                                  {appt.duration !== 1 && <div style={{ ...S.apptDur, color: isStaff ? "#3F8361" : S.apptDur.color }}>{appt.duration}h</div>}
-                                  {appt.notes && <div style={S.apptNotes}>{appt.notes}</div>}
-                                </div>
-                              );
-                            }
-                            const isPast = new Date(dateKey(date)) < new Date(dateKey(TODAY));
-                            return <div key={person} style={{ ...S.emptyCell, cursor: isPast ? "default" : "pointer" }} onClick={() => !isPast && openNewAppt(person, date, hour)} />;
-                          })}
+                          {brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}
+                          <div style={S.staffHeader}>Staff</div>
                         </div>
                       </td>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {HOURS.filter(h => h < 20).map(hour => (
+                    <tr key={hour} style={hour % 1 === 0 ? S.trFull : S.trHalf}>
+                      <td style={S.timeCell}>{hour % 1 === 0 ? hourLabel(hour) : ""}</td>
+                      {weekDays.map(({ name, date }) => (
+                        <td key={name} style={{ padding: 0, verticalAlign: "top" }}>
+                          <div style={S.brokerRow}>
+                            {[...brokers, "Staff"].map((person, pi) => {
+                              const isStaff = pi >= brokers.length;
+                              const appt = apptAt(person, date, hour);
+                              const blocked = !appt && isBlockedByPrev(person, date, hour);
+                              if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#EAF3EE" : S.blockedCell.background }} />;
+                              if (appt) {
+                                const rows = appt.duration / 0.5;
+                                return (
+                                  <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#3F8361" : "#2F5D8A"}` }} onClick={() => openEditAppt(appt)}>
+                                    <div style={{ ...S.apptName, color: isStaff ? "#1F4A34" : S.apptName.color }}>{appt.clientName}</div>
+                                  </div>
+                                );
+                              }
+                              const isPast = new Date(dateKey(date)) < new Date(dateKey(TODAY));
+                              return <div key={person} style={{ ...S.emptyCell, cursor: isPast ? "default" : "pointer" }} onClick={() => !isPast && openNewAppt(person, date, hour)} />;
+                            })}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 10, fontSize: 12.5, color: "#8FA0AF" }}>Tip: click any day header to jump into the readable Day view for that date.</div>
+            </div>
+          )}
         </div>
       )}
 
