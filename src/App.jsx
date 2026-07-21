@@ -3,7 +3,7 @@ import ImportedFromBadge from './components/ImportedFromBadge';
 import NotesModal from './components/NotesModal';
 import { WORKER_URL, DEFAULT_BROKERS, HOURS, DAYS } from './utils/constants';
 import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabel } from './utils/dateUtils';
-import { loadAll, upsertAppt, upsertAppts, deleteApptDB, cancelApptDB, upsertClient, upsertClients, insertMeetingNote, saveSetting, deleteClientDB } from './utils/supabase';
+import { syncData, fullResync, upsertAppt, upsertAppts, deleteApptDB, cancelApptDB, upsertClient, upsertClients, insertMeetingNote, saveSetting, deleteClientDB } from './utils/supabase';
 import { parseCSV } from './utils/csvParser';
 
 const PASS = "Cinergy0361!@";
@@ -127,12 +127,13 @@ export default function App() {
   const [pastType, setPastType] = useState("all"); // all | client | internal
   const [pastFrom, setPastFrom] = useState("");
   const [pastTo, setPastTo] = useState("");
+  const [resyncing, setResyncing] = useState(false);
   const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
   const loadedRef = useRef(false);
 
   useEffect(() => {
-    loadAll().then(d => {
+    syncData().then(d => {
       if (d.appointments?.length)                 setAppts(d.appointments);
       if (d.clients?.length)                      setClients(d.clients);
       if (d.brokers)                              setBrokers(d.brokers);
@@ -1125,6 +1126,23 @@ export default function App() {
                 <textarea style={{ ...S.input, height: 130, resize: "vertical", marginTop: 4 }} value={brokers.join("\n")} onChange={e => setBrokers(e.target.value.split("\n").filter(Boolean))} />
                 <label style={S.label}>Overdue threshold (days)</label>
                 <input type="number" style={{ ...S.input, width: 100, marginTop: 4 }} value={overdueThreshold} onChange={e => setODT(Number(e.target.value))} />
+                <div style={{ marginTop: 22, paddingTop: 16, borderTop: "1px solid #DCE3EA" }}>
+                  <div style={{ fontWeight: 700, color: "#1C2B3A", fontSize: 13, marginBottom: 4 }}>Data Sync</div>
+                  <div style={{ fontSize: 12, color: "#8FA0AF", marginBottom: 10 }}>
+                    The app normally only fetches what's changed since your last visit, to save bandwidth. If something looks out of date (e.g. right after a bulk delete), force a full refresh here.
+                  </div>
+                  <button style={S.reportBtn} disabled={resyncing} onClick={async () => {
+                    setResyncing(true);
+                    try {
+                      const d = await fullResync();
+                      if (d.appointments) setAppts(d.appointments);
+                      if (d.clients) setClients(d.clients);
+                      if (d.notes) setNotes(d.notes);
+                    } finally { setResyncing(false); }
+                  }}>
+                    {resyncing ? "⏳ Resyncing…" : "🔄 Full Resync"}
+                  </button>
+                </div>
               </>
             )}
             {settingsTab === "redtail" && (
