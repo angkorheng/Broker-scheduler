@@ -323,8 +323,16 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }
-  function openEditAppt(appt) { setForm({ ...appt, endHour: appt.startHour + appt.duration }); setModal({ type: "edit" }); }
+  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled", dateLastAcctSummary: "", rmd70Half: false, availableDpps: "", availableIfs: "", availableNotes: "" }); setModal({ type: "new" }); }
+  function openEditAppt(appt) {
+    const c = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
+    setForm({
+      ...appt, endHour: appt.startHour + appt.duration,
+      dateLastAcctSummary: c?.dateLastAcctSummary || "", rmd70Half: c?.rmd70Half || false,
+      availableDpps: c?.availableDpps ?? "", availableIfs: c?.availableIfs ?? "", availableNotes: c?.availableNotes || "",
+    });
+    setModal({ type: "edit" });
+  }
 
   function saveAppt() {
     if (!form.clientName.trim()) return;
@@ -338,6 +346,13 @@ export default function App() {
       confirmed: form.confirmed || false, status: form.status || "scheduled",
       fromRedtail: form.fromRedtail || false,
     };
+    const financialFields = {
+      dateLastAcctSummary: form.dateLastAcctSummary || null,
+      rmd70Half: form.rmd70Half || false,
+      availableDpps: form.availableDpps === "" || form.availableDpps == null ? null : Number(form.availableDpps),
+      availableIfs: form.availableIfs === "" || form.availableIfs == null ? null : Number(form.availableIfs),
+      availableNotes: form.availableNotes || "",
+    };
     if (modal.type === "new") {
       const id = crypto.randomUUID();
       const newAppt = { ...apptData, id };
@@ -345,16 +360,25 @@ export default function App() {
       upsertAppt(newAppt);
       if (!matchedClient) {
         const newClientId = crypto.randomUUID();
-        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker };
+        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker, ...financialFields };
         newAppt.clientId = newClientId;
         setClients(prev => [...prev, newClient]);
         upsertClient(newClient);
         upsertAppt(newAppt); // re-save with the linked clientId now that we have it
+      } else {
+        const updatedClient = { ...matchedClient, ...financialFields };
+        setClients(prev => prev.map(c => c.id === matchedClient.id ? updatedClient : c));
+        upsertClient(updatedClient);
       }
     } else {
       const updatedAppt = { ...apptData, id: form.id };
       setAppts(prev => prev.map(a => a.id === form.id ? updatedAppt : a));
       upsertAppt(updatedAppt);
+      if (matchedClient) {
+        const updatedClient = { ...matchedClient, ...financialFields };
+        setClients(prev => prev.map(c => c.id === matchedClient.id ? updatedClient : c));
+        upsertClient(updatedClient);
+      }
     }
     setModal(null);
   }
@@ -995,7 +1019,20 @@ export default function App() {
               {HOURS.filter(h => h > (form.startHour ?? 5) && h <= 20).map(h => <option key={h} value={h}>{hourLabel(h)}</option>)}
             </select>
             <label style={S.label}>Client Name</label>
-            <input style={S.input} list="client-list" value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} placeholder="Type or select…" />
+            <input style={S.input} list="client-list" value={form.clientName} onChange={e => {
+              const name = e.target.value;
+              const matched = clients.find(c => c.name.toLowerCase() === name.toLowerCase());
+              setForm(f => ({
+                ...f, clientName: name,
+                ...(matched ? {
+                  dateLastAcctSummary: matched.dateLastAcctSummary || "",
+                  rmd70Half: matched.rmd70Half || false,
+                  availableDpps: matched.availableDpps ?? "",
+                  availableIfs: matched.availableIfs ?? "",
+                  availableNotes: matched.availableNotes || "",
+                } : {}),
+              }));
+            }} placeholder="Type or select…" />
             <datalist id="client-list">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>
             <label style={S.label}>Subject / Topic</label>
             <input style={S.input} value={form.subject || ""} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Oil and Gas, Delivery Meeting…" />
@@ -1013,6 +1050,23 @@ export default function App() {
             </label>
             <label style={S.label}>Appointment Notes</label>
             <input style={S.input} value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional…" />
+
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #1a3a5c" }}>
+              <div style={{ color: "#4db8ff", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💰 Report Fields</div>
+              <label style={S.label}>Date of Last Acct. Summary</label>
+              <input type="date" style={S.input} value={form.dateLastAcctSummary || ""} onChange={e => setForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
+              <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="checkbox" checked={form.rmd70Half || false} onChange={e => setForm(f => ({ ...f, rmd70Half: e.target.checked }))} />
+                RMD 70½ applies
+              </label>
+              <label style={S.label}>Available for DPPs ($)</label>
+              <input type="number" style={S.input} value={form.availableDpps ?? ""} onChange={e => setForm(f => ({ ...f, availableDpps: e.target.value }))} placeholder="e.g. 50000" />
+              <label style={S.label}>Available for IFs ($)</label>
+              <input type="number" style={S.input} value={form.availableIfs ?? ""} onChange={e => setForm(f => ({ ...f, availableIfs: e.target.value }))} placeholder="e.g. 25000" />
+              <label style={S.label}>Available for NOTES</label>
+              <input style={S.input} value={form.availableNotes || ""} onChange={e => setForm(f => ({ ...f, availableNotes: e.target.value }))} placeholder="Notes for the report…" />
+            </div>
+
             <div style={S.modalActions}>
               {modal.type === "edit" && (
                 <>
@@ -1026,10 +1080,6 @@ export default function App() {
                   <button style={{ ...S.cancelBtn, borderColor: "#4caf73", color: "#4caf73" }}
                     onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("notes"); setNotesClient(c); } }}>
                     📝 Meeting Notes
-                  </button>
-                  <button style={{ ...S.cancelBtn, borderColor: "#4db8ff", color: "#4db8ff" }}
-                    onClick={() => { const c = clients.find(cl => cl.name === form.clientName); if (c) { setModal(null); setNotesClientView("financial"); setNotesClient(c); } else { alert("This client isn't in your directory yet — save the appointment first, or add them under All Clients."); } }}>
-                    💰 Financial Info
                   </button>
                 </>
               )}
