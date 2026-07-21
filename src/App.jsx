@@ -157,7 +157,7 @@ export default function App() {
   const clientStats = useMemo(() => {
     const map = {};
     const todayStr = TODAY.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-    [...appointments].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(appt => {
+    [...appointments].filter(a => a.status !== "cancelled").sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(appt => {
       if (!map[appt.clientName]) map[appt.clientName] = { last: null, next: null };
       if (appt.date < todayStr) map[appt.clientName].last = appt.date;
       else if (!map[appt.clientName].next) map[appt.clientName].next = appt.date;
@@ -518,13 +518,13 @@ export default function App() {
   }
 
   function apptAt(broker, date, hour) {
-    return appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === hour);
+    return appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === hour && a.status !== "cancelled");
   }
 
   function isBlockedByPrev(broker, date, hour) {
     for (const s of HOURS) {
       if (s >= hour) break;
-      const found = appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === s);
+      const found = appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === s && a.status !== "cancelled");
       if (found && s + found.duration > hour) return found;
     }
     return null;
@@ -605,7 +605,7 @@ export default function App() {
           <div><div style={S.logoText}>Cinergy Financial Scheduler</div><div style={S.logoSub}>Financial Advisory</div></div>
         </div>
         <nav style={S.nav}>
-          {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`]].map(([id, label]) => (
+          {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`]].map(([id, label]) => (
             <button key={id} style={tab === id ? S.navActive : S.navBtn} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
@@ -756,7 +756,7 @@ export default function App() {
                 const autoBroker = c.assignedBroker || (recentAppt ? recentAppt.broker : "");
                 const manualBrokers = c.manualBrokers || [];
                 const allBrokers = manualBrokers.length > 0 ? manualBrokers : (autoBroker ? [autoBroker] : []);
-                const clientNoteCount = (notes[c.name] || []).length;
+                const clientNoteCount = (notes[c.id] || []).length;
                 const isSelected = selectedClients.has(c.id);
                 return (
                   <tr key={c.id} style={{ ...(overdue ? S.overdueRow : S.clientRow), ...(isSelected ? { background: "#0d2540", outline: "1px solid #2a5a9c" } : {}) }}>
@@ -853,7 +853,7 @@ export default function App() {
                   {overdueClients.map(c => {
                     const st = clientStats[c.name] || {};
                     const ds = daysSince(st.last);
-                    const clientNoteCount = (notes[c.name] || []).length;
+                    const clientNoteCount = (notes[c.id] || []).length;
                     return (
                       <tr key={c.id} style={S.overdueRow}>
                         <td style={S.clientTd}><strong>{c.name}</strong></td>
@@ -880,6 +880,47 @@ export default function App() {
                 </tbody>
               </table>
           }
+        </div>
+      )}
+
+      {tab === "cancelled" && (
+        <div style={S.page}>
+          <div style={S.toolBar}>
+            <h2 style={S.sectionTitle}>🚫 Cancelled & Rescheduled Appointments</h2>
+          </div>
+          {(() => {
+            const cancelledAppts = appointments
+              .filter(a => a.status === "cancelled")
+              .sort((a, b) => new Date(b.date) - new Date(a.date));
+            return cancelledAppts.length === 0
+              ? <div style={S.empty}><div style={{ fontSize: 32 }}>✅</div>No cancelled appointments.</div>
+              : <table style={S.clientTable}>
+                  <thead><tr>{["Date","Time","Client","Broker","Reason","Actions"].map(h => <th key={h} style={S.clientTh}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {cancelledAppts.map(a => (
+                      <tr key={a.id} style={S.overdueRow}>
+                        <td style={S.clientTd}>{fmtFull(a.date)}</td>
+                        <td style={S.clientTd}>{hourLabel(a.startHour)}</td>
+                        <td style={S.clientTd}><strong>{a.clientName}</strong></td>
+                        <td style={S.clientTd}>{a.broker}</td>
+                        <td style={{ ...S.clientTd, color: "#ff9a3c" }}>{a.cancelReason || "—"}</td>
+                        <td style={S.clientTd}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button onClick={() => { setForm({ broker: a.broker, date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: a.clientName, notes: a.notes || "", subject: a.subject || "", location: a.location || "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }}
+                              style={{ background: "#0a1e30", border: "2px solid #4db8ff", color: "#4db8ff", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              🔁 Reschedule
+                            </button>
+                            <button onClick={() => deleteAppt(a.id)}
+                              style={{ background: "#3a1010", border: "2px solid #7a2020", color: "#ff6b6b", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                              🗑 Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>;
+          })()}
         </div>
       )}
 
