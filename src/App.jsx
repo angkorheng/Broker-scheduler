@@ -652,7 +652,7 @@ export default function App() {
           <div><div style={S.logoText}>Cinergy Financial</div><div style={S.logoSub}>Scheduler — Financial Advisory Services</div></div>
         </div>
         <nav style={S.nav}>
-          {[["schedule","📅 Schedule"],["clients",`👤 Client Directory (${clients.filter(c => !c.isProspect).length})`],["prospects",`🎯 Potential Clients (${clients.filter(c => c.isProspect).length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"]].map(([id, label]) => (
+          {[["schedule","📅 Schedule"],["clients",`👤 Client Directory (${clients.filter(c => !c.isProspect).length})`],["prospects",`🎯 Potential Clients (${clients.filter(c => c.isProspect).length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"],["overdue",`⚠️ Needs Attention (${overdueClients.length})`]].map(([id, label]) => (
             <button key={id} style={tab === id ? S.navActive : S.navBtn} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
