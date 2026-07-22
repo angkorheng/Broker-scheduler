@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ImportedFromBadge from './components/ImportedFromBadge';
 import NotesModal from './components/NotesModal';
+import ClientPicker from './components/ClientPicker';
 import { WORKER_URL, DEFAULT_BROKERS, HOURS, DAYS } from './utils/constants';
 import { TODAY, dateKey, daysSince, addDays, getMondayOf, fmt, fmtFull, hourLabel } from './utils/dateUtils';
 import { syncData, fullResync, upsertAppt, upsertAppts, deleteApptDB, cancelApptDB, upsertClient, upsertClients, insertMeetingNote, saveSetting, deleteClientDB } from './utils/supabase';
@@ -350,7 +351,11 @@ export default function App() {
     const brokersList = (form.brokers && form.brokers.length) ? form.brokers : (form.broker ? [form.broker] : []);
     if (brokersList.length === 0) { alert("Select at least one broker."); return; }
     const isClientMeeting = form.isClientMeeting !== false;
-    const matchedClient = isClientMeeting ? clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase()) : null;
+    // Match strictly by the ID the ClientPicker locked in — NOT by name text,
+    // since two different people can share a name. No selected ID means this
+    // is a brand-new person, regardless of whether the typed name happens to
+    // match someone already in the system.
+    const matchedClient = isClientMeeting && form.clientId ? clients.find(c => c.id === form.clientId) : null;
     const apptData = {
       broker: brokersList[0], brokers: brokersList, date: form.date, startHour: form.startHour, duration,
       clientName: form.clientName, clientId: matchedClient ? matchedClient.id : null,
@@ -372,7 +377,7 @@ export default function App() {
         // Create (and WAIT FOR) the client record first — the appointment's
         // client_id foreign key can't point at a row that isn't committed yet.
         const newClientId = crypto.randomUUID();
-        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: brokersList[0], ...financialFields };
+        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: brokersList[0], isProspect: form.newContactType === "prospect", ...financialFields };
         newAppt = { ...newAppt, clientId: newClientId };
         setClients(prev => [...prev, newClient]);
         await upsertClient(newClient);
@@ -940,7 +945,7 @@ export default function App() {
                           style={{ background: clientNoteCount > 0 ? "#E8F1EC" : "#FFFFFF", border: `2px solid ${clientNoteCount > 0 ? "#3F8361" : "#DCE3EA"}`, color: clientNoteCount > 0 ? "#3F8361" : "#8FA0AF", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                           📝 {clientNoteCount > 0 ? `${clientNoteCount} Note${clientNoteCount > 1 ? "s" : ""}` : "Add Note"}
                         </button>
-                        <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: c.name, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
+                        <button onClick={() => { setForm({ broker: (c.manualBrokers?.[0]) || c.assignedBroker || brokers[0] || "", date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: c.name, clientId: c.id, notes: "" }); setModal({ type: "new" }); setTab("schedule"); }}
                           style={{ background: "#DCE3EA", border: "2px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                           📅 Book Appt
                         </button>
@@ -992,7 +997,7 @@ export default function App() {
                     </td>
                     <td style={S.clientTd}>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <button onClick={() => { openNewAppt(brokers[0] || "", TODAY, 9); setForm(f => ({ ...f, clientName: c.name })); }}
+                        <button onClick={() => { openNewAppt(brokers[0] || "", TODAY, 9); setForm(f => ({ ...f, clientName: c.name, clientId: c.id })); }}
                           style={{ background: "#E7EEF5", border: "1px solid #2F5D8A", color: "#2F5D8A", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                           📅 Book Appt
                         </button>
@@ -1090,7 +1095,7 @@ export default function App() {
                         <td style={{ ...S.clientTd, color: "#B8792E" }}>{a.cancelReason || "—"}</td>
                         <td style={S.clientTd}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            <button onClick={() => { setForm({ broker: a.broker, brokers: a.brokers && a.brokers.length ? a.brokers : [a.broker], date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: a.clientName, notes: a.notes || "", subject: a.subject || "", location: a.location || "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }}
+                            <button onClick={() => { setForm({ broker: a.broker, brokers: a.brokers && a.brokers.length ? a.brokers : [a.broker], date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: a.clientName, clientId: a.clientId, notes: a.notes || "", subject: a.subject || "", location: a.location || "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }}
                               style={{ background: "#FFFFFF", border: "2px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               🔁 Reschedule
                             </button>
@@ -1284,21 +1289,45 @@ export default function App() {
               <div style={{ fontSize: 12, color: "#8FA0AF", marginTop: -2, marginBottom: 4 }}>Internal / vendor / staff meeting — won't be added to the Client Directory.</div>
             )}
             <label style={S.label}>{form.isClientMeeting === false ? "Meeting Title" : "Client Name"}</label>
-            <input style={S.input} list={form.isClientMeeting === false ? undefined : "client-list"} value={form.clientName} onChange={e => {
-              const name = e.target.value;
-              const matched = form.isClientMeeting === false ? null : clients.find(c => c.name.toLowerCase() === name.toLowerCase());
-              setForm(f => ({
-                ...f, clientName: name,
-                ...(matched ? {
-                  dateLastAcctSummary: matched.dateLastAcctSummary || "",
-                  rmd70Half: matched.rmd70Half || false,
-                  availableDpps: matched.availableDpps ?? "",
-                  availableIfs: matched.availableIfs ?? "",
-                  availableNotes: matched.availableNotes || "",
-                } : {}),
-              }));
-            }} placeholder={form.isClientMeeting === false ? "e.g. Team Meeting, IT Vendor Call…" : "Type or select…"} />
-            {form.isClientMeeting !== false && <datalist id="client-list">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>}
+            {form.isClientMeeting === false ? (
+              <input style={S.input} value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value, clientId: null }))} placeholder="e.g. Team Meeting, IT Vendor Call…" />
+            ) : (
+              <>
+                <ClientPicker
+                  clients={clients}
+                  value={form.clientName}
+                  selectedId={form.clientId}
+                  placeholder="Type to search existing clients/prospects, or enter a new name…"
+                  onChange={(name, matched) => {
+                    setForm(f => ({
+                      ...f, clientName: name, clientId: matched ? matched.id : null,
+                      ...(matched ? {
+                        dateLastAcctSummary: matched.dateLastAcctSummary || "",
+                        rmd70Half: matched.rmd70Half || false,
+                        availableDpps: matched.availableDpps ?? "",
+                        availableIfs: matched.availableIfs ?? "",
+                        availableNotes: matched.availableNotes || "",
+                      } : {}),
+                    }));
+                  }}
+                />
+                {!form.clientId && form.clientName?.trim() && (
+                  <div style={{ marginTop: 8, padding: "10px 14px", background: "#F7F0DC", border: "1px solid #E3C9A0", borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#A67C1E", marginBottom: 6 }}>New person — add "{form.clientName}" as:</div>
+                    <div style={{ display: "flex", gap: 16 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#1C2B3A", cursor: "pointer" }}>
+                        <input type="radio" name="newContactType" checked={form.newContactType !== "prospect"} onChange={() => setForm(f => ({ ...f, newContactType: "client" }))} />
+                        Client
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#1C2B3A", cursor: "pointer" }}>
+                        <input type="radio" name="newContactType" checked={form.newContactType === "prospect"} onChange={() => setForm(f => ({ ...f, newContactType: "prospect" }))} />
+                        Potential Client (Prospect)
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
               <div>
