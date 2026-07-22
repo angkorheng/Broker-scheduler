@@ -331,11 +331,11 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  function openNewAppt(broker, date, startHour) { setForm({ broker, date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled", isClientMeeting: true, dateLastAcctSummary: "", rmd70Half: false, availableDpps: "", availableIfs: "", availableNotes: "" }); setModal({ type: "new" }); }
+  function openNewAppt(broker, date, startHour) { setForm({ broker, brokers: [broker], date: dateKey(date), startHour, endHour: Math.min(startHour + 1, 20), clientName: "", notes: "", subject: "", location: "", confirmed: false, status: "scheduled", isClientMeeting: true, dateLastAcctSummary: "", rmd70Half: false, availableDpps: "", availableIfs: "", availableNotes: "" }); setModal({ type: "new" }); }
   function openEditAppt(appt) {
     const c = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
     setForm({
-      ...appt, endHour: appt.startHour + appt.duration, isClientMeeting: appt.isClientMeeting !== false,
+      ...appt, brokers: appt.brokers && appt.brokers.length ? appt.brokers : [appt.broker], endHour: appt.startHour + appt.duration, isClientMeeting: appt.isClientMeeting !== false,
       dateLastAcctSummary: c?.dateLastAcctSummary || "", rmd70Half: c?.rmd70Half || false,
       availableDpps: c?.availableDpps ?? "", availableIfs: c?.availableIfs ?? "", availableNotes: c?.availableNotes || "",
     });
@@ -346,10 +346,12 @@ export default function App() {
     if (!form.clientName.trim()) return;
     const duration = Math.round((form.endHour - form.startHour) * 2) / 2;
     if (duration <= 0) return;
+    const brokersList = (form.brokers && form.brokers.length) ? form.brokers : (form.broker ? [form.broker] : []);
+    if (brokersList.length === 0) { alert("Select at least one broker."); return; }
     const isClientMeeting = form.isClientMeeting !== false;
     const matchedClient = isClientMeeting ? clients.find(c => c.name.toLowerCase() === form.clientName.toLowerCase()) : null;
     const apptData = {
-      broker: form.broker, date: form.date, startHour: form.startHour, duration,
+      broker: brokersList[0], brokers: brokersList, date: form.date, startHour: form.startHour, duration,
       clientName: form.clientName, clientId: matchedClient ? matchedClient.id : null,
       notes: form.notes || "", subject: form.subject || "", location: form.location || "",
       confirmed: form.confirmed || false, status: form.status || "scheduled",
@@ -369,7 +371,7 @@ export default function App() {
         // Create (and WAIT FOR) the client record first — the appointment's
         // client_id foreign key can't point at a row that isn't committed yet.
         const newClientId = crypto.randomUUID();
-        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: form.broker, ...financialFields };
+        const newClient = { id: newClientId, name: form.clientName, phone: "", email: "", importedFrom: "manual", contactSource: "", assignedBroker: brokersList[0], ...financialFields };
         newAppt = { ...newAppt, clientId: newClientId };
         setClients(prev => [...prev, newClient]);
         await upsertClient(newClient);
@@ -430,14 +432,15 @@ export default function App() {
     let totalAppts = 0;
 
     const brokerBlocksHtml = brokers.map(broker => {
-      const rows = dayAppts.filter(a => a.broker === broker);
+      const rows = dayAppts.filter(a => (a.brokers || [a.broker]).includes(broker));
       totalAppts += rows.length;
 
       const rowsHtml = rows.map(a => {
         const c = clientFor(a);
+        const coBrokers = (a.brokers || [a.broker]).filter(b => b !== broker);
         return "<tr>"
           + "<td class='time'>" + hourLabel(a.startHour) + "</td>"
-          + "<td class='name'><div class='client-name'>" + a.clientName + "</div>" + (a.subject ? "<div class='subject'>" + a.subject + "</div>" : "") + "</td>"
+          + "<td class='name'><div class='client-name'>" + a.clientName + "</div>" + (a.subject ? "<div class='subject'>" + a.subject + "</div>" : "") + (coBrokers.length ? "<div class='cobroker'>w/ " + coBrokers.join(", ") + "</div>" : "") + "</td>"
           + "<td class='center'>" + (c?.dateLastAcctSummary ? c.dateLastAcctSummary : "—") + "</td>"
           + "<td class='center'>" + (c?.rmd70Half ? "✓" : "") + "</td>"
           + "<td>" + [a.clientName && c?.phone, c?.email].filter(Boolean).join("<br>") + "</td>"
@@ -484,6 +487,7 @@ export default function App() {
       "td.name { font-weight:600; }",
       ".client-name { font-weight:700; }",
       ".subject { color:#8FA0AF; font-style:italic; font-weight:400; font-size:8px; margin-top:0.5px; }",
+      ".cobroker { color:#2F5D8A; font-weight:600; font-size:7.5px; margin-top:0.5px; }",
       "td.center { text-align:center; }",
       "td.money { font-weight:600; color:#3F8361; }",
       "td.notes-col { color:#8FA0AF; font-style:italic; font-size:8px; }",
@@ -549,13 +553,13 @@ export default function App() {
   }
 
   function apptAt(broker, date, hour) {
-    return appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === hour && a.status !== "cancelled");
+    return appointments.find(a => (a.brokers || [a.broker]).includes(broker) && a.date === dateKey(date) && a.startHour === hour && a.status !== "cancelled");
   }
 
   function isBlockedByPrev(broker, date, hour) {
     for (const s of HOURS) {
       if (s >= hour) break;
-      const found = appointments.find(a => a.broker === broker && a.date === dateKey(date) && a.startHour === s && a.status !== "cancelled");
+      const found = appointments.find(a => (a.brokers || [a.broker]).includes(broker) && a.date === dateKey(date) && a.startHour === s && a.status !== "cancelled");
       if (found && s + found.duration > hour) return found;
     }
     return null;
@@ -729,6 +733,7 @@ export default function App() {
                               }}>
                                 <div style={{ fontSize: 11.5, color: "#8FA0AF", fontWeight: 600 }}>{hourLabel(hour)}{isInternal ? "  ·  Internal" : ""}</div>
                                 <div style={{ fontWeight: 700, fontSize: 13.5, color: isInternal ? "#6B7C8C" : "#1C2B3A", fontStyle: isInternal ? "italic" : "normal", textDecoration: isCancelled ? "line-through" : "none" }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                {(() => { const co = (appt.brokers || [appt.broker]).filter(b => b !== person); return co.length > 0 ? <div style={{ fontSize: 10.5, color: "#2F5D8A", fontWeight: 600 }}>w/ {co.join(", ")}</div> : null; })()}
                                 {(dpps != null || ifs != null) && (
                                   <div style={{ fontSize: 11, fontWeight: 600, color: "#3F8361", marginTop: 1 }}>
                                     {dpps != null && `DPP ${fmtMoney(dpps)}`}{dpps != null && ifs != null && "  ·  "}{ifs != null && `IF ${fmtMoney(ifs)}`}
@@ -1014,11 +1019,11 @@ export default function App() {
                         <td style={S.clientTd}>{fmtFull(a.date)}</td>
                         <td style={S.clientTd}>{hourLabel(a.startHour)}</td>
                         <td style={S.clientTd}><strong>{a.clientName}</strong></td>
-                        <td style={S.clientTd}>{a.broker}</td>
+                        <td style={S.clientTd}>{(a.brokers && a.brokers.length ? a.brokers : [a.broker]).join(", ")}</td>
                         <td style={{ ...S.clientTd, color: "#B8792E" }}>{a.cancelReason || "—"}</td>
                         <td style={S.clientTd}>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            <button onClick={() => { setForm({ broker: a.broker, date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: a.clientName, notes: a.notes || "", subject: a.subject || "", location: a.location || "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }}
+                            <button onClick={() => { setForm({ broker: a.broker, brokers: a.brokers && a.brokers.length ? a.brokers : [a.broker], date: dateKey(TODAY), startHour: 9, endHour: 10, clientName: a.clientName, notes: a.notes || "", subject: a.subject || "", location: a.location || "", confirmed: false, status: "scheduled" }); setModal({ type: "new" }); }}
                               style={{ background: "#FFFFFF", border: "2px solid #2F5D8A", color: "#2F5D8A", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                               🔁 Reschedule
                             </button>
@@ -1065,7 +1070,7 @@ export default function App() {
             const results = appointments
               .filter(a => a.date <= todayStr) // past + today only
               .filter(a => !q || a.clientName.toLowerCase().includes(q) || (a.subject || "").toLowerCase().includes(q))
-              .filter(a => pastBroker === "all" || a.broker === pastBroker)
+              .filter(a => pastBroker === "all" || (a.brokers && a.brokers.length ? a.brokers : [a.broker]).includes(pastBroker))
               .filter(a => pastType === "all" || (pastType === "client" ? a.isClientMeeting !== false : a.isClientMeeting === false))
               .filter(a => !pastFrom || a.date >= pastFrom)
               .filter(a => !pastTo || a.date <= pastTo)
@@ -1087,7 +1092,7 @@ export default function App() {
                             ? <span style={{ background: "#F1F4F7", color: "#6B7C8C", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Internal</span>
                             : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>}
                         </td>
-                        <td style={S.clientTd}>{a.broker}</td>
+                        <td style={S.clientTd}>{(a.brokers && a.brokers.length ? a.brokers : [a.broker]).join(", ")}</td>
                         <td style={{ ...S.clientTd, color: "#6B7C8C" }}>{a.subject || "—"}</td>
                         <td style={S.clientTd}>
                           {a.status === "cancelled"
@@ -1169,11 +1174,28 @@ export default function App() {
         <div style={S.overlay} onClick={() => setModal(null)}>
           <div style={S.modalBox} onClick={e => e.stopPropagation()}>
             <h3 style={S.modalTitle}>{modal.type === "new" ? "📅 New Appointment" : "✏️ Edit Appointment"}</h3>
-            <label style={S.label}>Broker / Staff</label>
-            <select style={S.input} value={form.broker} onChange={e => setForm(f => ({ ...f, broker: e.target.value }))}>
-              {brokers.map(b => <option key={b} value={b}>{b}</option>)}
-              <option value="Staff">Staff</option>
-            </select>
+            <label style={S.label}>Broker(s) / Staff</label>
+            <div style={{ fontSize: 11.5, color: "#8FA0AF", marginTop: -2, marginBottom: 6 }}>Select more than one if this meeting includes multiple brokers — it'll show on each of their schedules.</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {[...brokers, "Staff"].map(b => {
+                const selected = (form.brokers || []).includes(b);
+                return (
+                  <label key={b} style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
+                    background: selected ? "#E7EEF5" : "#F6F7FA", border: `1px solid ${selected ? "#2F5D8A" : "#DCE3EA"}`, color: selected ? "#2F5D8A" : "#6B7C8C",
+                  }}>
+                    <input type="checkbox" checked={selected} onChange={e => {
+                      setForm(f => {
+                        const current = f.brokers || [];
+                        const next = e.target.checked ? [...current, b] : current.filter(x => x !== b);
+                        return { ...f, brokers: next, broker: next[0] || "" };
+                      });
+                    }} style={{ margin: 0 }} />
+                    {b}
+                  </label>
+                );
+              })}
+            </div>
             <label style={S.label}>Date</label>
             <CalendarPicker value={form.date} onChange={date => setForm(f => ({ ...f, date }))} />
             <label style={S.label}>Start Time</label>

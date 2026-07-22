@@ -54,6 +54,7 @@ function writeCache(cache) {
 function mapAppt(a) {
   return {
     id: a.id, clientId: a.client_id, broker: a.broker, date: a.date,
+    brokers: (a.brokers && a.brokers.length) ? a.brokers : (a.broker ? [a.broker] : []),
     startHour: a.start_hour, duration: a.duration,
     clientName: a.client_name, notes: a.notes,
     location: a.location || '', confirmed: a.confirmed || false,
@@ -176,8 +177,9 @@ export async function fullResync() {
 export const loadAll = syncData;
 
 export async function upsertAppt(appt) {
+  const brokersArr = appt.brokers && appt.brokers.length ? appt.brokers : (appt.broker ? [appt.broker] : []);
   const res = await supabase.from('appointments').upsert({
-    id: appt.id, client_id: appt.clientId || null, broker: appt.broker, date: appt.date,
+    id: appt.id, client_id: appt.clientId || null, broker: brokersArr[0] || appt.broker || '', brokers: brokersArr, date: appt.date,
     start_hour: appt.startHour, duration: appt.duration,
     client_name: appt.clientName, notes: appt.notes || '',
     location: appt.location || '', confirmed: appt.confirmed || false,
@@ -191,16 +193,19 @@ export async function upsertAppt(appt) {
 
 export async function upsertAppts(appts) {
   if (!appts.length) return;
-  const res = await supabase.from('appointments').upsert(appts.map(a => ({
-    id: a.id, client_id: a.clientId || null, broker: a.broker, date: a.date,
-    start_hour: a.startHour, duration: a.duration,
-    client_name: a.clientName, notes: a.notes || '',
-    location: a.location || '', confirmed: a.confirmed || false,
-    status: a.status || 'scheduled', cancel_reason: a.cancelReason || '',
-    subject: a.subject || '', from_redtail: a.fromRedtail || false,
-    is_client_meeting: a.isClientMeeting !== false,
-    updated_at: new Date().toISOString(),
-  })));
+  const res = await supabase.from('appointments').upsert(appts.map(a => {
+    const brokersArr = a.brokers && a.brokers.length ? a.brokers : (a.broker ? [a.broker] : []);
+    return {
+      id: a.id, client_id: a.clientId || null, broker: brokersArr[0] || a.broker || '', brokers: brokersArr, date: a.date,
+      start_hour: a.startHour, duration: a.duration,
+      client_name: a.clientName, notes: a.notes || '',
+      location: a.location || '', confirmed: a.confirmed || false,
+      status: a.status || 'scheduled', cancel_reason: a.cancelReason || '',
+      subject: a.subject || '', from_redtail: a.fromRedtail || false,
+      is_client_meeting: a.isClientMeeting !== false,
+      updated_at: new Date().toISOString(),
+    };
+  }));
   check('upsertAppts', res);
 }
 
