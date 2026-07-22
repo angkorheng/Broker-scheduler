@@ -74,6 +74,7 @@ function mapClient(c) {
     rmd70Half: c.rmd_70_half || false,
     availableDpps: c.available_dpps, availableIfs: c.available_ifs,
     availableNotes: c.available_notes || '',
+    isProspect: c.is_prospect || false,
   };
 }
 
@@ -236,6 +237,7 @@ export async function upsertClient(client) {
     available_dpps: client.availableDpps ?? null,
     available_ifs: client.availableIfs ?? null,
     available_notes: client.availableNotes || '',
+    is_prospect: client.isProspect || false,
     updated_at: new Date().toISOString(),
   });
   check('upsertClient', res);
@@ -256,6 +258,7 @@ export async function upsertClients(clients) {
     available_dpps: c.availableDpps ?? null,
     available_ifs: c.availableIfs ?? null,
     available_notes: c.availableNotes || '',
+    is_prospect: c.isProspect || false,
     updated_at: new Date().toISOString(),
   })));
   check('upsertClients', res);

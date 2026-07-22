@@ -128,6 +128,7 @@ export default function App() {
   const [pastFrom, setPastFrom] = useState("");
   const [pastTo, setPastTo] = useState("");
   const [resyncing, setResyncing] = useState(false);
+  const [prospectSearch, setProspectSearch] = useState("");
   const [clientStatuses, setClientStatuses] = useState({});
   const csvRef = useRef();
   const loadedRef = useRef(false);
@@ -175,7 +176,7 @@ export default function App() {
   }, [appointments]);
 
   const overdueClients = useMemo(() =>
-    clients.filter(c => { const s = clientStats[c.name] || {}; return !s.next && daysSince(s.last) >= overdueThreshold; }),
+    clients.filter(c => !c.isProspect).filter(c => { const s = clientStats[c.name] || {}; return !s.next && daysSince(s.last) >= overdueThreshold; }),
     [clients, clientStats, overdueThreshold]
   );
 
@@ -625,8 +626,14 @@ export default function App() {
   };
 
   const filteredClients = clients
+    .filter(c => !c.isProspect)
     .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || "").includes(search) || (c.email || "").toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => nameSort === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+
+  const filteredProspects = clients
+    .filter(c => c.isProspect)
+    .filter(c => c.name.toLowerCase().includes(prospectSearch.toLowerCase()) || (c.phone || "").includes(prospectSearch) || (c.email || "").toLowerCase().includes(prospectSearch.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   if (!authed) {
     return <LoginGate onAuth={() => setAuthed(true)} />;
@@ -640,7 +647,7 @@ export default function App() {
           <div><div style={S.logoText}>Cinergy Financial</div><div style={S.logoSub}>Scheduler — Financial Advisory Services</div></div>
         </div>
         <nav style={S.nav}>
-          {[["schedule","📅 Schedule"],["clients",`👤 All Clients (${clients.length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"]].map(([id, label]) => (
+          {[["schedule","📅 Schedule"],["clients",`👤 Client Directory (${clients.filter(c => !c.isProspect).length})`],["prospects",`🎯 Potential Clients (${clients.filter(c => c.isProspect).length})`],["overdue",`⚠️ Needs Attention (${overdueClients.length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"]].map(([id, label]) => (
             <button key={id} style={tab === id ? S.navActive : S.navBtn} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
@@ -822,7 +829,7 @@ export default function App() {
             <h2 style={S.sectionTitle}>Client Directory</h2>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <input style={S.searchInput} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
-              <button style={S.addBtn} onClick={() => { setForm({ name: "", phone: "", email: "", contactSource: "" }); setModal({ type: "addClient" }); }}>+ Add Client</button>
+              <button style={S.addBtn} onClick={() => { setForm({ name: "", phone: "", email: "", contactSource: "", isProspect: false }); setModal({ type: "addClient" }); }}>+ Add Client</button>
             </div>
           </div>
 
@@ -948,7 +955,67 @@ export default function App() {
               })}
             </tbody>
           </table>
-          {clients.length === 0 && <div style={S.empty}><div style={{ fontSize: 32, marginBottom: 12 }}>📂</div>No clients yet.</div>}
+          {filteredClients.length === 0 && <div style={S.empty}><div style={{ fontSize: 32, marginBottom: 12 }}>📂</div>No clients yet.</div>}
+        </div>
+      )}
+
+      {tab === "prospects" && (
+        <div style={S.page}>
+          <div style={S.toolBar}>
+            <h2 style={S.sectionTitle}>🎯 Potential Clients</h2>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input style={S.searchInput} placeholder="Search…" value={prospectSearch} onChange={e => setProspectSearch(e.target.value)} />
+              <button style={S.addBtn} onClick={() => { setForm({ name: "", phone: "", email: "", contactSource: "", isProspect: true }); setModal({ type: "addClient" }); }}>+ Add Prospect</button>
+            </div>
+          </div>
+          <div style={{ fontSize: 12.5, color: "#8FA0AF", marginBottom: 14 }}>
+            Prospects are kept separate from your Client Directory until they're converted — they won't count toward client totals, Needs Attention, or reports.
+          </div>
+          <table style={S.clientTable}>
+            <thead>
+              <tr>{["Client","Phone","Email","Source","Notes","Actions"].map(h => <th key={h} style={S.clientTh}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {filteredProspects.map(c => {
+                const noteCount = (notes[c.id] || []).length;
+                return (
+                  <tr key={c.id} style={S.clientRow}>
+                    <td style={S.clientTd}><strong>{c.name}</strong></td>
+                    <td style={S.clientTd}>{c.phone || "—"}</td>
+                    <td style={S.clientTd}>{c.email || "—"}</td>
+                    <td style={S.clientTd}><ImportedFromBadge src={c.importedFrom} /></td>
+                    <td style={S.clientTd}>
+                      <button onClick={() => { setNotesClientView("notes"); setNotesClient(c); }}
+                        style={{ background: "none", border: "1px solid #DCE3EA", color: "#6B7C8C", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 }}>
+                        📝 {noteCount > 0 ? `${noteCount} Note${noteCount > 1 ? "s" : ""}` : "Add Note"}
+                      </button>
+                    </td>
+                    <td style={S.clientTd}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button onClick={() => { openNewAppt(brokers[0] || "", TODAY, 9); setForm(f => ({ ...f, clientName: c.name })); }}
+                          style={{ background: "#E7EEF5", border: "1px solid #2F5D8A", color: "#2F5D8A", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                          📅 Book Appt
+                        </button>
+                        <button onClick={async () => {
+                          const updated = { ...c, isProspect: false };
+                          setClients(prev => prev.map(cl => cl.id === c.id ? updated : cl));
+                          await upsertClient(updated);
+                        }}
+                          style={{ background: "#E8F1EC", border: "1px solid #7FAE93", color: "#2F6E4C", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                          ✓ Convert to Client
+                        </button>
+                        <button onClick={() => deleteClient(c)}
+                          style={{ background: "#F5E7E4", border: "1px solid #B0463B", color: "#B0463B", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12 }}>
+                          🗑 Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {filteredProspects.length === 0 && <div style={S.empty}><div style={{ fontSize: 32, marginBottom: 12 }}>🎯</div>No potential clients tracked yet.</div>}
         </div>
       )}
 
@@ -1310,13 +1377,17 @@ export default function App() {
       {modal && modal.type === "addClient" && (
         <div style={S.overlay} onClick={() => setModal(null)}>
           <div style={S.modalBox} onClick={e => e.stopPropagation()}>
-            <h3 style={S.modalTitle}>👤 Add Client</h3>
+            <h3 style={S.modalTitle}>{form.isProspect ? "🎯 Add Potential Client" : "👤 Add Client"}</h3>
             <label style={S.label}>Full Name *</label>
             <input style={S.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <label style={S.label}>Phone</label>
             <input style={S.input} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
             <label style={S.label}>Email</label>
             <input style={S.input} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={form.isProspect || false} onChange={e => setForm(f => ({ ...f, isProspect: e.target.checked }))} />
+              This is a potential client (prospect), not yet a full client
+            </label>
             <div style={S.modalActions}>
               <button style={S.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={S.saveBtn} onClick={() => {
@@ -1325,7 +1396,7 @@ export default function App() {
                 setClients(prev => [...prev, newClient]);
                 upsertClient(newClient);
                 setModal(null);
-              }}>Add Client</button>
+              }}>{form.isProspect ? "Add Prospect" : "Add Client"}</button>
             </div>
           </div>
         </div>
