@@ -128,6 +128,11 @@ export default function App() {
   const [pastType, setPastType] = useState("all"); // all | client | internal
   const [pastFrom, setPastFrom] = useState("");
   const [pastTo, setPastTo] = useState("");
+  const [futureSearch, setFutureSearch] = useState("");
+  const [futureBroker, setFutureBroker] = useState("all");
+  const [futureType, setFutureType] = useState("all");
+  const [futureFrom, setFutureFrom] = useState("");
+  const [futureTo, setFutureTo] = useState("");
   const [resyncing, setResyncing] = useState(false);
   const [prospectSearch, setProspectSearch] = useState("");
   const [clientStatuses, setClientStatuses] = useState({});
@@ -652,7 +657,7 @@ export default function App() {
           <div><div style={S.logoText}>Cinergy Financial</div><div style={S.logoSub}>Scheduler — Financial Advisory Services</div></div>
         </div>
         <nav style={S.nav}>
-          {[["schedule","📅 Schedule"],["clients",`👤 Client Directory (${clients.filter(c => !c.isProspect).length})`],["prospects",`🎯 Potential Clients (${clients.filter(c => c.isProspect).length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"],["overdue",`⚠️ Needs Attention (${overdueClients.length})`]].map(([id, label]) => (
+          {[["schedule","📅 Schedule"],["clients",`👤 Client Directory (${clients.filter(c => !c.isProspect).length})`],["prospects",`🎯 Potential Clients (${clients.filter(c => c.isProspect).length})`],["cancelled",`🚫 Cancelled (${appointments.filter(a => a.status === "cancelled").length})`],["past","🗓 Past Meetings"],["future","📆 Future Meetings"],["overdue",`⚠️ Needs Attention (${overdueClients.length})`]].map(([id, label]) => (
             <button key={id} style={tab === id ? S.navActive : S.navBtn} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
@@ -1171,6 +1176,72 @@ export default function App() {
                             ? <span style={{ color: "#B0463B", fontWeight: 600 }}>Cancelled</span>
                             : a.status === "completed"
                             ? <span style={{ color: "#3F8361", fontWeight: 600 }}>Completed</span>
+                            : <span style={{ color: "#8FA0AF" }}>Scheduled</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>;
+          })()}
+        </div>
+      )}
+
+      {tab === "future" && (
+        <div style={S.page}>
+          <div style={S.toolBar}>
+            <h2 style={S.sectionTitle}>📆 Future Meetings</h2>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18, alignItems: "center" }}>
+            <input style={{ ...S.searchInput, minWidth: 220, flex: 1 }} placeholder="Search by client or meeting title…" value={futureSearch} onChange={e => setFutureSearch(e.target.value)} />
+            <select style={S.searchInput} value={futureBroker} onChange={e => setFutureBroker(e.target.value)}>
+              <option value="all">All Brokers</option>
+              {[...brokers, "Staff"].map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select style={S.searchInput} value={futureType} onChange={e => setFutureType(e.target.value)}>
+              <option value="all">All Types</option>
+              <option value="client">Client Meetings</option>
+              <option value="internal">Internal / Vendor</option>
+            </select>
+            <input type="date" style={S.searchInput} value={futureFrom} onChange={e => setFutureFrom(e.target.value)} title="From date" />
+            <span style={{ color: "#8FA0AF" }}>to</span>
+            <input type="date" style={S.searchInput} value={futureTo} onChange={e => setFutureTo(e.target.value)} title="To date" />
+            {(futureSearch || futureBroker !== "all" || futureType !== "all" || futureFrom || futureTo) && (
+              <button style={S.cancelBtn} onClick={() => { setFutureSearch(""); setFutureBroker("all"); setFutureType("all"); setFutureFrom(""); setFutureTo(""); }}>Clear filters</button>
+            )}
+          </div>
+          {(() => {
+            const todayStr = dateKey(TODAY);
+            const q = futureSearch.trim().toLowerCase();
+            const results = appointments
+              .filter(a => a.date > todayStr) // strictly future — today's stuff lives in Past Meetings once it happens
+              .filter(a => !q || a.clientName.toLowerCase().includes(q) || (a.subject || "").toLowerCase().includes(q))
+              .filter(a => futureBroker === "all" || (a.brokers && a.brokers.length ? a.brokers : [a.broker]).includes(futureBroker))
+              .filter(a => futureType === "all" || (futureType === "client" ? a.isClientMeeting !== false : a.isClientMeeting === false))
+              .filter(a => !futureFrom || a.date >= futureFrom)
+              .filter(a => !futureTo || a.date <= futureTo)
+              .sort((a, b) => new Date(a.date) - new Date(b.date) || a.startHour - b.startHour);
+            return results.length === 0
+              ? <div style={S.empty}><div style={{ fontSize: 32 }}>📆</div>No upcoming meetings match these filters.</div>
+              : <table style={S.clientTable}>
+                  <thead><tr>{["Date","Time","Client / Title","Type","Broker","Subject","Status"].map(h => <th key={h} style={S.clientTh}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {results.map(a => (
+                      <tr key={a.id} style={S.clientRow}>
+                        <td style={S.clientTd}>{fmtFull(a.date)}</td>
+                        <td style={S.clientTd}>{hourLabel(a.startHour)}</td>
+                        <td style={S.clientTd} onClick={() => openEditAppt(a)}>
+                          <strong style={{ cursor: "pointer", color: "#2F5D8A" }}>{a.clientName}</strong>
+                        </td>
+                        <td style={S.clientTd}>
+                          {a.isClientMeeting === false
+                            ? <span style={{ background: "#F1F4F7", color: "#6B7C8C", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Internal</span>
+                            : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>}
+                        </td>
+                        <td style={S.clientTd}>{(a.brokers && a.brokers.length ? a.brokers : [a.broker]).join(", ")}</td>
+                        <td style={{ ...S.clientTd, color: "#6B7C8C" }}>{a.subject || "—"}</td>
+                        <td style={S.clientTd}>
+                          {a.status === "cancelled"
+                            ? <span style={{ color: "#B0463B", fontWeight: 600 }}>Cancelled</span>
                             : <span style={{ color: "#8FA0AF" }}>Scheduled</span>}
                         </td>
                       </tr>
