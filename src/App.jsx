@@ -607,7 +607,7 @@ export default function App() {
     badge:        { padding: "5px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600 },
     empty:        { textAlign: "center", padding: 64, color: "#8FA0AF", fontSize: 17 },
     overlay:      { position: "fixed", inset: 0, background: "rgba(28,43,58,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 },
-    modalBox:     { background: "#FFFFFF", border: "1px solid #DCE3EA", borderRadius: 14, padding: 32, width: 500, maxWidth: "97vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(28,43,58,0.16)", boxSizing: "border-box" },
+    modalBox:     { background: "#FFFFFF", border: "1px solid #DCE3EA", borderRadius: 14, padding: 32, width: 680, maxWidth: "97vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 32px rgba(28,43,58,0.16)", boxSizing: "border-box" },
     modalTitle:   { margin: "0 0 6px", fontFamily: "'Source Serif 4',Georgia,serif", color: "#1C2B3A", fontSize: 21, fontWeight: 600 },
     label:        { display: "block", color: "#6B7C8C", fontSize: 13, marginBottom: 6, marginTop: 18, fontWeight: 600 },
     input:        { width: "100%", background: "#F6F7FA", border: "1px solid #DCE3EA", borderRadius: 8, color: "#1C2B3A", padding: "10px 14px", fontSize: 14, boxSizing: "border-box" },
@@ -1210,16 +1210,23 @@ export default function App() {
               }));
             }} placeholder={form.isClientMeeting === false ? "e.g. Team Meeting, IT Vendor Call…" : "Type or select…"} />
             {form.isClientMeeting !== false && <datalist id="client-list">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>}
-            <label style={S.label}>Subject / Topic</label>
-            <input style={S.input} value={form.subject || ""} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Oil and Gas, Delivery Meeting…" />
-            <label style={S.label}>Location</label>
-            <select style={S.input} value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}>
-              <option value="">— Select —</option>
-              <option value="PH">Phone (PH)</option>
-              <option value="OFC">Office (OFC)</option>
-              <option value="ZOOM">Zoom</option>
-              <option value="House">Client's House</option>
-            </select>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+              <div>
+                <label style={S.label}>Subject / Topic</label>
+                <input style={S.input} value={form.subject || ""} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} placeholder="e.g. Oil and Gas, Delivery Meeting…" />
+              </div>
+              <div>
+                <label style={S.label}>Location</label>
+                <select style={S.input} value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  <option value="PH">Phone (PH)</option>
+                  <option value="OFC">Office (OFC)</option>
+                  <option value="ZOOM">Zoom</option>
+                  <option value="House">Client's House</option>
+                </select>
+              </div>
+            </div>
             <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
               <input type="checkbox" checked={form.confirmed || false} onChange={e => setForm(f => ({ ...f, confirmed: e.target.checked }))} />
               Confirmed
@@ -1230,16 +1237,24 @@ export default function App() {
             {form.isClientMeeting !== false && (
               <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #DCE3EA" }}>
                 <div style={{ color: "#2F5D8A", fontWeight: 700, fontSize: 12, marginBottom: 4 }}>💰 Report Fields</div>
-                <label style={S.label}>Date of Last Acct. Summary</label>
-                <input type="date" style={S.input} value={form.dateLastAcctSummary || ""} onChange={e => setForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
-                <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={form.rmd70Half || false} onChange={e => setForm(f => ({ ...f, rmd70Half: e.target.checked }))} />
-                  RMD 70½ applies
-                </label>
-                <label style={S.label}>Available for DPPs ($)</label>
-                <input type="number" style={S.input} value={form.availableDpps ?? ""} onChange={e => setForm(f => ({ ...f, availableDpps: e.target.value }))} placeholder="e.g. 50000" />
-                <label style={S.label}>Available for IFs ($)</label>
-                <input type="number" style={S.input} value={form.availableIfs ?? ""} onChange={e => setForm(f => ({ ...f, availableIfs: e.target.value }))} placeholder="e.g. 25000" />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px", alignItems: "end" }}>
+                  <div>
+                    <label style={S.label}>Date of Last Acct. Summary</label>
+                    <input type="date" style={S.input} value={form.dateLastAcctSummary || ""} onChange={e => setForm(f => ({ ...f, dateLastAcctSummary: e.target.value }))} />
+                  </div>
+                  <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <input type="checkbox" checked={form.rmd70Half || false} onChange={e => setForm(f => ({ ...f, rmd70Half: e.target.checked }))} />
+                    RMD 70½ applies
+                  </label>
+                  <div>
+                    <label style={S.label}>Available for DPPs ($)</label>
+                    <input type="number" style={S.input} value={form.availableDpps ?? ""} onChange={e => setForm(f => ({ ...f, availableDpps: e.target.value }))} placeholder="e.g. 50000" />
+                  </div>
+                  <div>
+                    <label style={S.label}>Available for IFs ($)</label>
+                    <input type="number" style={S.input} value={form.availableIfs ?? ""} onChange={e => setForm(f => ({ ...f, availableIfs: e.target.value }))} placeholder="e.g. 25000" />
+                  </div>
+                </div>
                 <label style={S.label}>Available for NOTES</label>
                 <input style={S.input} value={form.availableNotes || ""} onChange={e => setForm(f => ({ ...f, availableNotes: e.target.value }))} placeholder="Notes for the report…" />
               </div>
