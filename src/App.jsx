@@ -1413,6 +1413,8 @@ export default function App() {
                   <option value="OFC">Office (OFC)</option>
                   <option value="ZOOM">Zoom</option>
                   <option value="House">Client's House</option>
+                  <option value="Personal">Personal</option>
+                  <option value="Offsite">Offsite</option>
                 </select>
               </div>
             </div>
