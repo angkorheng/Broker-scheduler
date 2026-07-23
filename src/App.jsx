@@ -563,6 +563,12 @@ export default function App() {
     setSelClients(new Set());
   }
 
+  function apptTypeOf(a) {
+    if (a.isClientMeeting === false) return "internal";
+    const c = clients.find(cl => cl.id === a.clientId) || clients.find(cl => cl.name.toLowerCase() === a.clientName.toLowerCase());
+    return c?.isProspect ? "prospect" : "client";
+  }
+
   function apptAt(broker, date, hour) {
     return appointments.find(a => (a.brokers || [a.broker]).includes(broker) && a.date === dateKey(date) && a.startHour === hour && a.status !== "cancelled");
   }
@@ -1132,6 +1138,7 @@ export default function App() {
             <select style={S.searchInput} value={pastType} onChange={e => setPastType(e.target.value)}>
               <option value="all">All Types</option>
               <option value="client">Client Meetings</option>
+              <option value="prospect">Prospect Meetings</option>
               <option value="internal">Internal / Vendor</option>
             </select>
             <input type="date" style={S.searchInput} value={pastFrom} onChange={e => setPastFrom(e.target.value)} title="From date" />
@@ -1148,7 +1155,7 @@ export default function App() {
               .filter(a => a.date <= todayStr) // past + today only
               .filter(a => !q || a.clientName.toLowerCase().includes(q) || (a.subject || "").toLowerCase().includes(q))
               .filter(a => pastBroker === "all" || (a.brokers && a.brokers.length ? a.brokers : [a.broker]).includes(pastBroker))
-              .filter(a => pastType === "all" || (pastType === "client" ? a.isClientMeeting !== false : a.isClientMeeting === false))
+              .filter(a => pastType === "all" || apptTypeOf(a) === pastType)
               .filter(a => !pastFrom || a.date >= pastFrom)
               .filter(a => !pastTo || a.date <= pastTo)
               .sort((a, b) => new Date(b.date) - new Date(a.date) || b.startHour - a.startHour);
@@ -1165,9 +1172,11 @@ export default function App() {
                           <strong style={{ cursor: "pointer", color: "#2F5D8A" }}>{a.clientName}</strong>
                         </td>
                         <td style={S.clientTd}>
-                          {a.isClientMeeting === false
+                          {(() => { const t = apptTypeOf(a); return t === "internal"
                             ? <span style={{ background: "#F1F4F7", color: "#6B7C8C", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Internal</span>
-                            : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>}
+                            : t === "prospect"
+                            ? <span style={{ background: "#F7F0DC", color: "#A67C1E", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Prospect</span>
+                            : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>; })()}
                         </td>
                         <td style={S.clientTd}>{(a.brokers && a.brokers.length ? a.brokers : [a.broker]).join(", ")}</td>
                         <td style={{ ...S.clientTd, color: "#6B7C8C" }}>{a.subject || "—"}</td>
@@ -1200,6 +1209,7 @@ export default function App() {
             <select style={S.searchInput} value={futureType} onChange={e => setFutureType(e.target.value)}>
               <option value="all">All Types</option>
               <option value="client">Client Meetings</option>
+              <option value="prospect">Prospect Meetings</option>
               <option value="internal">Internal / Vendor</option>
             </select>
             <input type="date" style={S.searchInput} value={futureFrom} onChange={e => setFutureFrom(e.target.value)} title="From date" />
@@ -1216,7 +1226,7 @@ export default function App() {
               .filter(a => a.date > todayStr) // strictly future — today's stuff lives in Past Meetings once it happens
               .filter(a => !q || a.clientName.toLowerCase().includes(q) || (a.subject || "").toLowerCase().includes(q))
               .filter(a => futureBroker === "all" || (a.brokers && a.brokers.length ? a.brokers : [a.broker]).includes(futureBroker))
-              .filter(a => futureType === "all" || (futureType === "client" ? a.isClientMeeting !== false : a.isClientMeeting === false))
+              .filter(a => futureType === "all" || apptTypeOf(a) === futureType)
               .filter(a => !futureFrom || a.date >= futureFrom)
               .filter(a => !futureTo || a.date <= futureTo)
               .sort((a, b) => new Date(a.date) - new Date(b.date) || a.startHour - b.startHour);
@@ -1233,9 +1243,11 @@ export default function App() {
                           <strong style={{ cursor: "pointer", color: "#2F5D8A" }}>{a.clientName}</strong>
                         </td>
                         <td style={S.clientTd}>
-                          {a.isClientMeeting === false
+                          {(() => { const t = apptTypeOf(a); return t === "internal"
                             ? <span style={{ background: "#F1F4F7", color: "#6B7C8C", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Internal</span>
-                            : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>}
+                            : t === "prospect"
+                            ? <span style={{ background: "#F7F0DC", color: "#A67C1E", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Prospect</span>
+                            : <span style={{ background: "#E7EEF5", color: "#2F5D8A", borderRadius: 8, padding: "2px 10px", fontSize: 12, fontWeight: 600 }}>Client</span>; })()}
                         </td>
                         <td style={S.clientTd}>{(a.brokers && a.brokers.length ? a.brokers : [a.broker]).join(", ")}</td>
                         <td style={{ ...S.clientTd, color: "#6B7C8C" }}>{a.subject || "—"}</td>
