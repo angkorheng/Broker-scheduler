@@ -143,11 +143,29 @@ export default function App() {
     syncData().then(d => {
       if (d.appointments?.length)                 setAppts(d.appointments);
       if (d.clients?.length)                      setClients(d.clients);
-      if (d.brokers)                              setBrokers(d.brokers);
-      if (d.overdueThreshold != null)             setODT(d.overdueThreshold);
-      if (d.creds)                                setCreds(d.creds);
+      if (d.brokers) {
+        try {
+          const parsed = typeof d.brokers === "string" ? JSON.parse(d.brokers) : d.brokers;
+          if (Array.isArray(parsed) && parsed.length) setBrokers(parsed);
+        } catch { /* corrupted/old value — keep the current broker list */ }
+      }
+      if (d.overdueThreshold != null) {
+        const n = Number(d.overdueThreshold);
+        if (!isNaN(n)) setODT(n);
+      }
+      if (d.creds) {
+        try {
+          const parsed = typeof d.creds === "string" ? JSON.parse(d.creds) : d.creds;
+          if (parsed && typeof parsed === "object") setCreds(parsed);
+        } catch { /* corrupted/old value — keep defaults */ }
+      }
       if (d.notes && Object.keys(d.notes).length) setNotes(d.notes);
-      if (d.clientStatuses) setClientStatuses(d.clientStatuses);
+      if (d.clientStatuses) {
+        try {
+          const parsed = typeof d.clientStatuses === "string" ? JSON.parse(d.clientStatuses) : d.clientStatuses;
+          if (parsed && typeof parsed === "object") setClientStatuses(parsed);
+        } catch { /* corrupted/old value — keep defaults */ }
+      }
       loadedRef.current = true;
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -155,17 +173,17 @@ export default function App() {
 
   useEffect(() => {
     if (!loadedRef.current) return;
-    saveSetting('brokers', brokers);
+    saveSetting('brokers', JSON.stringify(brokers));
   }, [brokers]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
-    saveSetting('overdueThreshold', overdueThreshold);
+    saveSetting('overdueThreshold', String(overdueThreshold));
   }, [overdueThreshold]);
 
   useEffect(() => {
     if (!loadedRef.current) return;
-    saveSetting('creds', creds);
+    saveSetting('creds', JSON.stringify(creds));
   }, [creds]);
 
   const weekDays = DAYS.map((name, i) => ({ name, date: addDays(weekStart, i) }));
@@ -202,7 +220,7 @@ export default function App() {
       const updated = { ...prev };
       if (!status) delete updated[clientId];
       else updated[clientId] = status;
-      saveSetting('clientStatuses', updated);
+      saveSetting('clientStatuses', JSON.stringify(updated));
       return updated;
     });
   }
