@@ -191,16 +191,20 @@ export default function App() {
   const clientStats = useMemo(() => {
     const map = {};
     const todayStr = TODAY.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+    // Keyed by client ID (falling back to a name-based key only when an
+    // appointment has no linked client) — keying by name alone would merge
+    // stats for two different people who happen to share a name.
     [...appointments].filter(a => a.status !== "cancelled").sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(appt => {
-      if (!map[appt.clientName]) map[appt.clientName] = { last: null, next: null };
-      if (appt.date < todayStr) map[appt.clientName].last = appt.date;
-      else if (!map[appt.clientName].next) map[appt.clientName].next = appt.date;
+      const key = appt.clientId || `name:${appt.clientName.toLowerCase()}`;
+      if (!map[key]) map[key] = { last: null, next: null };
+      if (appt.date < todayStr) map[key].last = appt.date;
+      else if (!map[key].next) map[key].next = appt.date;
     });
     return map;
   }, [appointments]);
 
   const overdueClients = useMemo(() =>
-    clients.filter(c => !c.isProspect).filter(c => { const s = clientStats[c.name] || {}; return !s.next && daysSince(s.last) >= overdueThreshold; }),
+    clients.filter(c => !c.isProspect).filter(c => { const s = clientStats[c.id] || {}; return !s.next && daysSince(s.last) >= overdueThreshold; }),
     [clients, clientStats, overdueThreshold]
   );
 
@@ -261,7 +265,7 @@ export default function App() {
         const ownerFirst = ownerName.split(" ")[0];
         const matchedBroker = brokers.find(b => ownerName.toLowerCase().includes(b.toLowerCase()));
         const assignedBroker = matchedBroker ? matchedBroker : ownerFirst ? `${ownerFirst} / Unassigned` : "";
-        return { id: "pd_" + (p.id || i), name: p.name || "", phone: p.phone?.[0]?.value || "", email: p.email?.[0]?.value || "", importedFrom: "pipedrive", contactSource, assignedBroker };
+        return { id: crypto.randomUUID(), redtailId: null, name: p.name || "", phone: p.phone?.[0]?.value || "", email: p.email?.[0]?.value || "", importedFrom: "pipedrive", contactSource, assignedBroker };
       }).filter(c => c.name);
       mergeClients(contacts, "pipedrive");
 
@@ -288,7 +292,7 @@ export default function App() {
           }
           const assignedUser = (act.owner_name || "").toLowerCase();
           const matchedBroker = brokers.find(b => assignedUser.includes(b.toLowerCase())) || brokers[0];
-          newAppts.push({ id: "pd_act_" + act.id, broker: matchedBroker, date: act.due_date, startHour, duration, clientName, notes: act.subject || act.type || "", fromPipedrive: true });
+          newAppts.push({ id: crypto.randomUUID(), broker: matchedBroker, brokers: [matchedBroker], date: act.due_date, startHour, duration, clientName, notes: act.subject || act.type || "", fromPipedrive: true, isClientMeeting: true });
         });
         setAppts(prev => {
           const manual = prev.filter(a => !a.fromPipedrive);
@@ -315,7 +319,7 @@ export default function App() {
       if (!res.ok) throw new Error(`Redtail returned ${res.status}`);
       const data = await res.json();
       const contacts = (data.contacts || data.data || []).map((c, i) => ({
-        id: "rt_" + (c.id || i), name: [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown",
+        id: crypto.randomUUID(), redtailId: c.id ? String(c.id) : null, name: [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown",
         phone: c.phones?.[0]?.number || "", email: c.emails?.[0]?.address || "",
         importedFrom: "redtail", contactSource: c.source || c.category || "", assignedBroker: "",
       })).filter(c => c.name && c.name !== "Unknown");
@@ -429,7 +433,7 @@ export default function App() {
   function deleteClient(client) {
     if (!window.confirm(`Delete "${client.name}" and all their appointments and notes? This cannot be undone.`)) return;
     setClients(prev => prev.filter(c => c.id !== client.id));
-    setAppts(prev => prev.filter(a => a.clientName !== client.name));
+    setAppts(prev => prev.filter(a => a.clientId !== client.id));
     setNotes(prev => { const n = { ...prev }; delete n[client.id]; return n; });
     deleteClientDB(client.id, client.name);
   }
@@ -575,8 +579,8 @@ export default function App() {
     if (!window.confirm(`Delete ${selectedClients.size} client${selectedClients.size > 1 ? "s" : ""} and all their appointments and notes? This cannot be undone.`)) return;
     const toDelete = clients.filter(c => selectedClients.has(c.id));
     setClients(prev => prev.filter(c => !selectedClients.has(c.id)));
-    setAppts(prev => prev.filter(a => !toDelete.find(c => c.name === a.clientName)));
-    setNotes(prev => { const n = { ...prev }; toDelete.forEach(c => delete n[c.name]); return n; });
+    setAppts(prev => prev.filter(a => !selectedClients.has(a.clientId)));
+    setNotes(prev => { const n = { ...prev }; toDelete.forEach(c => delete n[c.id]); return n; });
     toDelete.forEach(c => deleteClientDB(c.id, c.name));
     setSelClients(new Set());
   }
@@ -907,10 +911,10 @@ export default function App() {
             </thead>
             <tbody>
               {filteredClients.map(c => {
-                const st = clientStats[c.name] || {};
+                const st = clientStats[c.id] || {};
                 const ds = daysSince(st.last);
                 const overdue = !st.next && ds >= overdueThreshold;
-                const recentAppt = [...appointments].filter(a => a.clientName === c.name).sort((a,b) => new Date(b.date)-new Date(a.date))[0];
+                const recentAppt = [...appointments].filter(a => a.clientId === c.id).sort((a,b) => new Date(b.date)-new Date(a.date))[0];
                 const autoBroker = c.assignedBroker || (recentAppt ? recentAppt.broker : "");
                 const manualBrokers = c.manualBrokers || [];
                 const allBrokers = manualBrokers.length > 0 ? manualBrokers : (autoBroker ? [autoBroker] : []);
@@ -1069,7 +1073,7 @@ export default function App() {
                 <thead><tr>{["Client","Phone","Email","Imported From","Last Seen","Days Since","Notes"].map(h => <th key={h} style={S.clientTh}>{h}</th>)}</tr></thead>
                 <tbody>
                   {overdueClients.map(c => {
-                    const st = clientStats[c.name] || {};
+                    const st = clientStats[c.id] || {};
                     const ds = daysSince(st.last);
                     const clientNoteCount = (notes[c.id] || []).length;
                     return (

@@ -9,7 +9,7 @@ export function parseCSV(text) {
   return lines.slice(1).map((line, i) => {
     const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
     return {
-      id: "csv_" + Date.now() + "_" + i,
+      id: crypto.randomUUID(),
       name: cols[nameIdx] || "",
       phone: phoneIdx >= 0 ? cols[phoneIdx] || "" : "",
       email: emailIdx >= 0 ? cols[emailIdx] || "" : "",

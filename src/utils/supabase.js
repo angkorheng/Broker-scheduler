@@ -286,7 +286,7 @@ export async function saveSetting(key, value) {
 export async function deleteClientDB(clientId, clientName) {
   const results = await Promise.all([
     supabase.from('clients').delete().eq('id', clientId),
-    supabase.from('appointments').delete().eq('client_name', clientName),
+    supabase.from('appointments').delete().eq('client_id', clientId),
     supabase.from('meeting_notes').delete().eq('client_id', clientId),
   ]);
   results.forEach(r => check('deleteClientDB', r));
