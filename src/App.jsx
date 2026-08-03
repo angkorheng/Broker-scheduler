@@ -663,19 +663,151 @@ export default function App() {
     crmCard:      { display: "flex", alignItems: "center", gap: 14, background: "#F6F7FA", borderRadius: 10, padding: "14px 18px", marginBottom: 6 },
   };
 
-  const filteredClients = clients
+  const filteredClients = useMemo(() => clients
     .filter(c => !c.isProspect)
     .filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || "").includes(search) || (c.email || "").toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => nameSort === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+    .sort((a, b) => nameSort === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)),
+    [clients, search, nameSort]);
 
-  const filteredProspects = clients
+  const filteredProspects = useMemo(() => clients
     .filter(c => c.isProspect)
     .filter(c => c.name.toLowerCase().includes(prospectSearch.toLowerCase()) || (c.phone || "").includes(prospectSearch) || (c.email || "").toLowerCase().includes(prospectSearch.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name)),
+    [clients, prospectSearch]);
 
   if (!authed) {
     return <LoginGate onAuth={() => setAuthed(true)} />;
   }
+
+  const dayViewGrid = useMemo(() => (
+            <div style={{ overflowX: "auto" }}>
+              <div style={{ display: "flex", minWidth: (brokers.length + 1) * 240 + 68 }}>
+                <div style={{ width: 68, flexShrink: 0 }}>
+                  <div style={{ height: 54 }} />
+                  {HOURS.filter(h => h < 20).map(hour => (
+                    <div key={hour} style={{ height: 52, textAlign: "right", paddingRight: 10, fontSize: 11.5, color: "#8FA0AF", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }}>
+                      {hour % 1 === 0 ? hourLabel(hour) : ""}
+                    </div>
+                  ))}
+                </div>
+                {[...brokers, "Staff"].map(person => {
+                  const isStaff = person === "Staff";
+                  return (
+                    <div key={person} style={{ flex: 1, minWidth: 220, borderLeft: "1px solid #DCE3EA" }}>
+                      <div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center", background: isStaff ? "#EEF4EF" : "#F1F4F7", fontWeight: 700, fontSize: 13.5, color: isStaff ? "#4F8F68" : "#1C2B3A", borderBottom: "1px solid #DCE3EA" }}>
+                        {person}
+                      </div>
+                      {(() => {
+                        const cells = [];
+                        const hoursList = HOURS.filter(h => h < 20);
+                        for (const hour of hoursList) {
+                          const appt = apptAt(person, selectedDay, hour);
+                          const blocked = !appt && isBlockedByPrev(person, selectedDay, hour);
+                          if (blocked) { cells.push(<div key={hour} style={{ height: 52, background: isStaff ? "#EAF3EE" : "#F1F4F7", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }} />); continue; }
+                          if (appt) {
+                            const rows = appt.duration / 0.5;
+                            const hasNotes = (notes[appt.clientId] || []).length > 0;
+                            const isCancelled = appt.status === "cancelled";
+                            const isInternal = appt.isClientMeeting === false;
+                            const apptClient = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
+                            const dpps = apptClient?.availableDpps;
+                            const ifs = apptClient?.availableIfs;
+                            const fmtMoney = n => "$" + Number(n).toLocaleString("en-US");
+                            const coBrokers = (appt.brokers || [appt.broker]).filter(b => b !== person);
+                            const metaLine = [coBrokers.length ? `w/ ${coBrokers.join(", ")}` : null, appt.subject || null].filter(Boolean).join(" · ");
+                            const trunc = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+                            cells.push(
+                              <div key={hour} onClick={() => openEditAppt(appt)} style={{
+                                height: `${rows * 52 - 4}px`, margin: "2px 6px", padding: "5px 10px", borderRadius: 6, cursor: "pointer",
+                                background: isCancelled ? "#FBEEEC" : isInternal ? "#F6F7FA" : "#FFFFFF",
+                                boxShadow: isCancelled ? "none" : "0 1px 3px rgba(28,43,58,0.1)",
+                                border: isCancelled ? "1px dashed #B0463B" : isInternal ? "1px dashed #B7C6D6" : "none",
+                                borderLeft: `3px solid ${isCancelled ? "#B0463B" : isInternal ? "#8FA0AF" : isStaff ? "#3F8361" : "#2F5D8A"}`,
+                                opacity: isCancelled ? 0.7 : 1, overflow: "hidden",
+                              }}>
+                                <div style={{ fontSize: 11, color: "#8FA0AF", fontWeight: 600, ...trunc }}>{hourLabel(hour)}{isInternal ? "  ·  Internal" : ""}</div>
+                                <div style={{ fontWeight: 700, fontSize: 13, color: isInternal ? "#6B7C8C" : "#1C2B3A", fontStyle: isInternal ? "italic" : "normal", textDecoration: isCancelled ? "line-through" : "none", ...trunc }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
+                                {metaLine && <div style={{ fontSize: 10.5, color: "#2F5D8A", fontWeight: 600, ...trunc }}>{metaLine}</div>}
+                                {(dpps != null || ifs != null) && (
+                                  <div style={{ fontSize: 10.5, fontWeight: 600, color: "#3F8361", marginTop: 1, ...trunc }}>
+                                    {dpps != null && `DPP ${fmtMoney(dpps)}`}{dpps != null && ifs != null && "  ·  "}{ifs != null && `IF ${fmtMoney(ifs)}`}
+                                  </div>
+                                )}
+                                {appt.location && <div style={{ fontSize: 10.5, color: "#8FA0AF", marginTop: 1, ...trunc }}>{appt.location}{appt.confirmed ? " · ✓ Confirmed" : ""}</div>}
+                              </div>
+                            );
+                          } else {
+                            const isPast = new Date(dateKey(selectedDay)) < new Date(dateKey(TODAY));
+                            cells.push(<div key={hour} onClick={() => !isPast && openNewAppt(person, selectedDay, hour)} style={{ height: 52, cursor: isPast ? "default" : "pointer", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }} />);
+                          }
+                        }
+                        return cells;
+                      })()}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+  ), [appointments, clients, notes, selectedDay, brokers]);
+
+  const weekViewGrid = useMemo(() => (
+            <div style={{ overflowX: "auto" }}>
+              <table style={S.grid}>
+                <thead>
+                  <tr>
+                    <th style={S.timeHeader}>Time</th>
+                    {weekDays.map(({ name, date }) => (
+                      <th key={name} style={{ ...S.dayHeader, background: dateKey(date) === dateKey(TODAY) ? "#DCE3EA" : "#EEF1F5", cursor: "pointer" }} onClick={() => { setSelectedDay(date); setScheduleView("day"); }}>
+                        <div style={{ fontWeight: 700 }}>{name}</div>
+                        <div style={{ fontSize: 11, opacity: 0.7 }}>{fmt(date)}</div>
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td style={S.timeCell} />
+                    {weekDays.map(({ name }) => (
+                      <td key={name} style={{ padding: 0 }}>
+                        <div style={S.brokerRow}>
+                          {brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}
+                          <div style={S.staffHeader}>Staff</div>
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {HOURS.filter(h => h < 20).map(hour => (
+                    <tr key={hour} style={hour % 1 === 0 ? S.trFull : S.trHalf}>
+                      <td style={S.timeCell}>{hour % 1 === 0 ? hourLabel(hour) : ""}</td>
+                      {weekDays.map(({ name, date }) => (
+                        <td key={name} style={{ padding: 0, verticalAlign: "top" }}>
+                          <div style={S.brokerRow}>
+                            {[...brokers, "Staff"].map((person, pi) => {
+                              const isStaff = pi >= brokers.length;
+                              const appt = apptAt(person, date, hour);
+                              const blocked = !appt && isBlockedByPrev(person, date, hour);
+                              if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#EAF3EE" : S.blockedCell.background }} />;
+                              if (appt) {
+                                const rows = appt.duration / 0.5;
+                                return (
+                                  <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#3F8361" : "#2F5D8A"}` }} onClick={() => openEditAppt(appt)}>
+                                    <div style={{ ...S.apptName, color: isStaff ? "#1F4A34" : S.apptName.color }}>{appt.clientName}</div>
+                                  </div>
+                                );
+                              }
+                              const isPast = new Date(dateKey(date)) < new Date(dateKey(TODAY));
+                              return <div key={person} style={{ ...S.emptyCell, cursor: isPast ? "default" : "pointer" }} onClick={() => !isPast && openNewAppt(person, date, hour)} />;
+                            })}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ marginTop: 10, fontSize: 12.5, color: "#8FA0AF" }}>Tip: click any day header to jump into the readable Day view for that date.</div>
+            </div>
+  ), [appointments, clients, notes, weekDays, brokers]);
 
   return (
     <div style={S.root}>
@@ -733,131 +865,7 @@ export default function App() {
             </div>
           </div>
 
-          {scheduleView === "day" ? (
-            <div style={{ overflowX: "auto" }}>
-              <div style={{ display: "flex", minWidth: (brokers.length + 1) * 240 + 68 }}>
-                <div style={{ width: 68, flexShrink: 0 }}>
-                  <div style={{ height: 54 }} />
-                  {HOURS.filter(h => h < 20).map(hour => (
-                    <div key={hour} style={{ height: 44, textAlign: "right", paddingRight: 10, fontSize: 11.5, color: "#8FA0AF", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }}>
-                      {hour % 1 === 0 ? hourLabel(hour) : ""}
-                    </div>
-                  ))}
-                </div>
-                {[...brokers, "Staff"].map(person => {
-                  const isStaff = person === "Staff";
-                  return (
-                    <div key={person} style={{ flex: 1, minWidth: 220, borderLeft: "1px solid #DCE3EA" }}>
-                      <div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center", background: isStaff ? "#EEF4EF" : "#F1F4F7", fontWeight: 700, fontSize: 13.5, color: isStaff ? "#4F8F68" : "#1C2B3A", borderBottom: "1px solid #DCE3EA" }}>
-                        {person}
-                      </div>
-                      {(() => {
-                        const cells = [];
-                        const hoursList = HOURS.filter(h => h < 20);
-                        for (const hour of hoursList) {
-                          const appt = apptAt(person, selectedDay, hour);
-                          const blocked = !appt && isBlockedByPrev(person, selectedDay, hour);
-                          if (blocked) { cells.push(<div key={hour} style={{ height: 44, background: isStaff ? "#EAF3EE" : "#F1F4F7", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }} />); continue; }
-                          if (appt) {
-                            const rows = appt.duration / 0.5;
-                            const hasNotes = (notes[appt.clientId] || []).length > 0;
-                            const isCancelled = appt.status === "cancelled";
-                            const isInternal = appt.isClientMeeting === false;
-                            const apptClient = clients.find(cl => cl.id === appt.clientId) || clients.find(cl => cl.name.toLowerCase() === appt.clientName.toLowerCase());
-                            const dpps = apptClient?.availableDpps;
-                            const ifs = apptClient?.availableIfs;
-                            const fmtMoney = n => "$" + Number(n).toLocaleString("en-US");
-                            cells.push(
-                              <div key={hour} onClick={() => openEditAppt(appt)} style={{
-                                height: `${rows * 44 - 4}px`, margin: "2px 6px", padding: "6px 10px", borderRadius: 6, cursor: "pointer",
-                                background: isCancelled ? "#FBEEEC" : isInternal ? "#F6F7FA" : "#FFFFFF",
-                                boxShadow: isCancelled ? "none" : "0 1px 3px rgba(28,43,58,0.1)",
-                                border: isCancelled ? "1px dashed #B0463B" : isInternal ? "1px dashed #B7C6D6" : "none",
-                                borderLeft: `3px solid ${isCancelled ? "#B0463B" : isInternal ? "#8FA0AF" : isStaff ? "#3F8361" : "#2F5D8A"}`,
-                                opacity: isCancelled ? 0.7 : 1,
-                              }}>
-                                <div style={{ fontSize: 11.5, color: "#8FA0AF", fontWeight: 600 }}>{hourLabel(hour)}{isInternal ? "  ·  Internal" : ""}</div>
-                                <div style={{ fontWeight: 700, fontSize: 13.5, color: isInternal ? "#6B7C8C" : "#1C2B3A", fontStyle: isInternal ? "italic" : "normal", textDecoration: isCancelled ? "line-through" : "none" }}>{appt.clientName}{hasNotes ? " 📝" : ""}</div>
-                                {(() => { const co = (appt.brokers || [appt.broker]).filter(b => b !== person); return co.length > 0 ? <div style={{ fontSize: 10.5, color: "#2F5D8A", fontWeight: 600 }}>w/ {co.join(", ")}</div> : null; })()}
-                                {(dpps != null || ifs != null) && (
-                                  <div style={{ fontSize: 11, fontWeight: 600, color: "#3F8361", marginTop: 1 }}>
-                                    {dpps != null && `DPP ${fmtMoney(dpps)}`}{dpps != null && ifs != null && "  ·  "}{ifs != null && `IF ${fmtMoney(ifs)}`}
-                                  </div>
-                                )}
-                                {appt.subject && <div style={{ fontSize: 11.5, color: "#6B7C8C", fontStyle: "italic" }}>{appt.subject}</div>}
-                                {appt.location && <div style={{ fontSize: 11, color: "#8FA0AF", marginTop: 2 }}>{appt.location}{appt.confirmed ? " · ✓ Confirmed" : ""}</div>}
-                              </div>
-                            );
-                          } else {
-                            const isPast = new Date(dateKey(selectedDay)) < new Date(dateKey(TODAY));
-                            cells.push(<div key={hour} onClick={() => !isPast && openNewAppt(person, selectedDay, hour)} style={{ height: 44, cursor: isPast ? "default" : "pointer", borderTop: hour % 1 === 0 ? "1px solid #E3E8EE" : "1px dotted #EEF1F5" }} />);
-                          }
-                        }
-                        return cells;
-                      })()}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={S.grid}>
-                <thead>
-                  <tr>
-                    <th style={S.timeHeader}>Time</th>
-                    {weekDays.map(({ name, date }) => (
-                      <th key={name} style={{ ...S.dayHeader, background: dateKey(date) === dateKey(TODAY) ? "#DCE3EA" : "#EEF1F5", cursor: "pointer" }} onClick={() => { setSelectedDay(date); setScheduleView("day"); }}>
-                        <div style={{ fontWeight: 700 }}>{name}</div>
-                        <div style={{ fontSize: 11, opacity: 0.7 }}>{fmt(date)}</div>
-                      </th>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td style={S.timeCell} />
-                    {weekDays.map(({ name }) => (
-                      <td key={name} style={{ padding: 0 }}>
-                        <div style={S.brokerRow}>
-                          {brokers.map(b => <div key={b} style={S.brokerHeader}>{b}</div>)}
-                          <div style={S.staffHeader}>Staff</div>
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {HOURS.filter(h => h < 20).map(hour => (
-                    <tr key={hour} style={hour % 1 === 0 ? S.trFull : S.trHalf}>
-                      <td style={S.timeCell}>{hour % 1 === 0 ? hourLabel(hour) : ""}</td>
-                      {weekDays.map(({ name, date }) => (
-                        <td key={name} style={{ padding: 0, verticalAlign: "top" }}>
-                          <div style={S.brokerRow}>
-                            {[...brokers, "Staff"].map((person, pi) => {
-                              const isStaff = pi >= brokers.length;
-                              const appt = apptAt(person, date, hour);
-                              const blocked = !appt && isBlockedByPrev(person, date, hour);
-                              if (blocked) return <div key={person} style={{ ...S.blockedCell, background: isStaff ? "#EAF3EE" : S.blockedCell.background }} />;
-                              if (appt) {
-                                const rows = appt.duration / 0.5;
-                                return (
-                                  <div key={person} style={{ ...S.apptCell, height: `${rows * 34}px`, cursor: "pointer", borderLeft: `3px solid ${isStaff ? "#3F8361" : "#2F5D8A"}` }} onClick={() => openEditAppt(appt)}>
-                                    <div style={{ ...S.apptName, color: isStaff ? "#1F4A34" : S.apptName.color }}>{appt.clientName}</div>
-                                  </div>
-                                );
-                              }
-                              const isPast = new Date(dateKey(date)) < new Date(dateKey(TODAY));
-                              return <div key={person} style={{ ...S.emptyCell, cursor: isPast ? "default" : "pointer" }} onClick={() => !isPast && openNewAppt(person, date, hour)} />;
-                            })}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ marginTop: 10, fontSize: 12.5, color: "#8FA0AF" }}>Tip: click any day header to jump into the readable Day view for that date.</div>
-            </div>
-          )}
+          {scheduleView === "day" ? dayViewGrid : weekViewGrid}
         </div>
       )}
 
