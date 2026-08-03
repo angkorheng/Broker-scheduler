@@ -675,10 +675,6 @@ export default function App() {
     .sort((a, b) => a.name.localeCompare(b.name)),
     [clients, prospectSearch]);
 
-  if (!authed) {
-    return <LoginGate onAuth={() => setAuthed(true)} />;
-  }
-
   const dayViewGrid = useMemo(() => (
             <div style={{ overflowX: "auto" }}>
               <div style={{ display: "flex", minWidth: (brokers.length + 1) * 240 + 68 }}>
@@ -808,6 +804,10 @@ export default function App() {
               <div style={{ marginTop: 10, fontSize: 12.5, color: "#8FA0AF" }}>Tip: click any day header to jump into the readable Day view for that date.</div>
             </div>
   ), [appointments, clients, notes, weekDays, brokers]);
+
+  if (!authed) {
+    return <LoginGate onAuth={() => setAuthed(true)} />;
+  }
 
   return (
     <div style={S.root}>
