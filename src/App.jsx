@@ -186,7 +186,7 @@ export default function App() {
     saveSetting('creds', JSON.stringify(creds));
   }, [creds]);
 
-  const weekDays = DAYS.map((name, i) => ({ name, date: addDays(weekStart, i) }));
+  const weekDays = useMemo(() => DAYS.map((name, i) => ({ name, date: addDays(weekStart, i) })), [weekStart]);
 
   const clientStats = useMemo(() => {
     const map = {};
